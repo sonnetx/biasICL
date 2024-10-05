@@ -9,6 +9,7 @@ import re
 import asyncio
 import time
 from tqdm.asyncio import tqdm
+from typing import Dict, List
 
 # Open the file and read the line
 with open('/home/joseph/keys/openai-key.txt', 'r') as file:
@@ -130,7 +131,7 @@ async def process_row(model, row, demo_prompt, demo_paths, semaphore):
     async with semaphore:
         ground_truth = row.malignant
         fst = '12' if row.skin_tone == 12 else '56'
-        path = '/home/joseph/datasets/ddi/ddidiversedermatologyimages/' + row.DDI_file
+        path = image_path + row.DDI_file
 
 #         formatted_columns = ", ".join([f"{chr(65+i)}. {col}" for i, col in enumerate(row.index[5:19])])
         prompt = f"""<<IMG>>Given the image above, answer the following question using the specified format. 
@@ -165,62 +166,76 @@ async def process_dataframe_async(model, test_frame, demo_prompt, demo_paths, se
     result_df = pd.DataFrame(results)
     return result_df
 
-async def main():
+def create_demo_frame(demo_frame: pd.DataFrame, sample_sizes: Dict[str, int], random_state: int = 42) -> pd.DataFrame:
+    frames = []
+    for skin_tone in [56, 12]:
+        for malignant in [True, False]:
+            subset = demo_frame[(demo_frame.skin_tone == skin_tone) & (demo_frame.malignant == malignant)]
+            key = f"fst{skin_tone}_{'mal' if malignant else 'ben'}"
+            frames.append(subset.sample(sample_sizes[key], random_state=random_state))
+    
+    return pd.concat(frames).sample(frac=1, random_state=random_state)
 
-    ###
-    ### Load demo example frame
-    ### Choose relevant demo examples
-    ### Then create demo prompt and list of demo image paths
-    ###
-    demo_frame = pd.read_csv('/home/joseph/biasICL/ddi_demo_metadata.csv', index_col=0)
-    
-    fst56_frame = demo_frame[demo_frame.skin_tone == 56]
-    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(5, random_state=42)
-    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(15, random_state=42)
-    
-    fst12_frame = demo_frame[demo_frame.skin_tone == 12]
-    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(5, random_state=42)
-    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(15, random_state=42)
-    
-    final_demo_frame = pd.concat([fst56_mal_frame,
-                                  fst56_ben_frame,
-                                  fst12_mal_frame,
-                                  fst12_ben_frame]).sample(40, random_state=42) # sample full num to shuffle
-    
+def create_demo_prompt(final_demo_frame: pd.DataFrame, image_path: str) -> tuple[str, List[str]]:
     demo_prompt = """Please respond with the following format for each question, in the form of a single capital letter specifying which label best describes the image surrounded by beginning <ANS> and end </ANS> brackets:
         ---BEGIN FORMAT TEMPLATE FOR QUESTION---
         <ANS> The single capital letter best describing the image here </ANS>
         ---END FORMAT TEMPLATE FOR QUESTION---
 
         Do not deviate from the above format, because it will be automatically parsed with a regex."""
+    
     demo_paths = []
-    for i,row in final_demo_frame.iterrows():
-        ans_choice = "B" if row.malignant == True else "A"
+    for _, row in final_demo_frame.iterrows():
+        ans_choice = "B" if row.malignant else "A"
         demo_prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
         Question: Which of the following descriptors best describes the image?
         Choices: A. Benign, B. Malignant
         Answer: <ANS> {ans_choice} </ANS>
         
         """
-        demo_paths.append('/home/joseph/datasets/ddi/ddidiversedermatologyimages/' + row.DDI_file)
-        
-    ###
-    ### Load test frame and specify model
+        demo_paths.append(image_path + row.DDI_file)
     
-    test_frame = pd.read_csv('/home/joseph/biasICL/ddi_test_metadata.csv', index_col=0)
+    return demo_prompt, demo_paths
+
+async def run_experiment(demo_frame_path: str, test_frame_path: str, image_path: str, sample_sizes: Dict[str, int], output_file: str):
+    demo_frame = pd.read_csv(demo_frame_path, index_col=0)
+    final_demo_frame = create_demo_frame(demo_frame, sample_sizes)
+    demo_prompt, demo_paths = create_demo_prompt(final_demo_frame, image_path)
+    
+    test_frame = pd.read_csv(test_frame_path, index_col=0)
     async_model = OpenAIModel({"model": "gpt-4o"}, is_async=True)
     
-    # Define semaphore with a limit of 20 concurrent requests
     semaphore = asyncio.Semaphore(5)
 
-    # Time async processing
     start_time_async = time.time()
     output_frame_async = await process_dataframe_async(async_model, test_frame, demo_prompt, demo_paths, semaphore)
-    output_frame_async.to_csv('ddi_fst12_and_fst56_balanced_base_rate_15_and_5_shot_high_res.csv')
+    output_frame_async.to_csv(output_file)
     end_time_async = time.time()
     async_duration = end_time_async - start_time_async
 
     print(f"Async processing time: {async_duration:.2f} seconds")
 
+async def run_multiple_experiments(experiments: List[Dict]):
+    for exp in experiments:
+        await run_experiment(**exp)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    global image_path
+    image_path = "path/to/images"
+    experiments = [
+        {
+            "demo_frame_path": "path/to/demo_frame.csv",
+            "test_frame_path": "path/to/test_frame.csv",
+            "image_path": "path/to/images/",
+            "sample_sizes": {
+                "fst56_mal": 5,
+                "fst56_ben": 15,
+                "fst12_mal": 5,
+                "fst12_ben": 15
+            },
+            "output_file": "output_experiment1.csv"
+        },
+        # Add more experiments here with different sample sizes or paths
+    ]
+    
+    asyncio.run(run_multiple_experiments(experiments))
