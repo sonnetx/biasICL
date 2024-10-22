@@ -61,7 +61,7 @@ def main(
     
     demo_frame = create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal)
     dataset_name = "DDI"
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo.csv", index_col=0)
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test.csv", index_col=0)
 
     if model.startswith("gpt"):
         api = GPT4VAPI(model=model, detail=detail)
@@ -155,7 +155,7 @@ Do not deviate from the above format. Repeat the format template for the answer.
                     pickle.dump(results, f)
                 exit()
 
-            print(res)
+            # print(res)
             results[qns_id] = (res,prompt,image_paths)
 
     # Update token usage and save the results
@@ -168,9 +168,26 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    main("gpt-4o-2024-05-13",
-    0, 
-    0, 
-    0, 
-    0,
-    50,)
+    for num_malignant in [1,5,10,20,30]:
+        main("gpt-4o-2024-05-13",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+    
+    for num_malignant in [1,5,10,20,30]:
+        main("gpt-4o-2024-05-13",
+        0,
+        0,
+        num_malignant*3, 
+        num_malignant, 
+        50,)
+
+    for num_malignant in [1,5,10,20,30]:
+        main("gpt-4o-2024-05-13",
+        num_malignant*3, 
+        num_malignant, 
+        num_malignant*3, 
+        num_malignant,
+        50,)

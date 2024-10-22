@@ -6,35 +6,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import re
 
-
-# def pickle_to_res(path):
-#     with open(path, "rb") as f:
-#         raw_pickle = pickle.load(f)
-
-#     results = {}
-#     answer_prefix="Answer Choice "
-
-#     def extract_ans(ans_str, search_substring):
-#         # Split the string into lines
-#         lines = ans_str.split("\n")
-
-#         for line in lines:
-#             # Check if the line starts with the specified substring
-#             if line.startswith(search_substring):
-#                 # If it does, add it to the list of extracted rows
-#                 return line[len(search_substring) :].strip()
-#         return "ERROR"  # Answer not found
-
-#     for k, v in raw_pickle.items():
-#         if k != 'token_usage':  # Skip token_usage
-#             qns_idx = ast.literal_eval(k)
-#             for idx, qn_idx in enumerate(qns_idx):
-#                 results[qn_idx] = extract_ans(
-#                     v[0], f"{answer_prefix}{idx+1}:"
-#                 )  # We start with question 1
-#                 print(results[qn_idx])
-#     return results
-
 def pickle_to_res(path):
     with open(path, "rb") as f:
         raw_pickle = pickle.load(f)
@@ -69,13 +40,12 @@ def pickle_to_res(path):
 
 
 def res_to_vec(results):
-    print(results)
     test_df = pd.read_csv('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/DDI/ddi_test.csv', index_col=0)
     num_errors = 0
     labels, preds, race = [], [], []
     for i in test_df.itertuples():
         fst = '12' if i.skin_tone == 12 else '56'
-        if (i.Index not in results) or (results[i.Index].startswith("ERROR")):
+        if (i.Index not in results) or (str(results[i.Index]).startswith("ERROR")):
             num_errors += 1
 
             print(i.Index, f"answer not found")
@@ -87,14 +57,20 @@ def res_to_vec(results):
         preds.append(pred_text)
         race.append(fst)
         
-    print(f"In total {num_errors} errors len = {len(labels)}")
+    print(f"In total {num_errors} errors; len = {len(labels)}")
     return labels,preds,race
 
 def calculate_metrics(actual, predicted):
-    TP = sum((a == 'B' and p == 'B') for a, p in zip(actual, predicted))
-    TN = sum((a == 'A' and p == 'A') for a, p in zip(actual, predicted))
-    FP = sum((a == 'A' and p == 'B') for a, p in zip(actual, predicted))
-    FN = sum((a == 'B' and p == 'A') for a, p in zip(actual, predicted))
+    predicted_choice = [p[0] for p in predicted]
+    # TP = sum((a == 'B' and p == 'B') for a, p in zip(actual, predicted))
+    # TN = sum((a == 'A' and p == 'A') for a, p in zip(actual, predicted))
+    # FP = sum((a == 'A' and p == 'B') for a, p in zip(actual, predicted))
+    # FN = sum((a == 'B' and p == 'A') for a, p in zip(actual, predicted))
+    
+    TP = sum((a == 'B' and p == 'B') for a, p in zip(actual, predicted_choice))
+    TN = sum((a == 'A' and p == 'A') for a, p in zip(actual, predicted_choice))
+    FP = sum((a == 'A' and p == 'B') for a, p in zip(actual, predicted_choice))
+    FN = sum((a == 'B' and p == 'A') for a, p in zip(actual, predicted_choice))
     
     precision = TP / (TP + FP) if (TP + FP) > 0 else 0
     recall = TP / (TP + FN) if (TP + FN) > 0 else 0
@@ -194,10 +170,12 @@ if __name__ == "__main__":
         all_labels.append(final_label)
 
         results = pickle_to_res(exp)
+        # print(results)
         labels,preds,race = res_to_vec(results)
+        # print(labels,preds,race)
 
         accuracy, tpr, tnr, fscore = calculate_metrics(labels, preds)
-    #     print(f"Accuracy: {accuracy}, TPR: {tpr}, TNR: {tnr}, F1: {fscore}")
+        print(f"Accuracy: {accuracy}, TPR: {tpr}, TNR: {tnr}, F1: {fscore}")
 
         # Filter for race '12'
         actual_12, predicted_12 = filter_by_race(labels, preds, race, '12')
