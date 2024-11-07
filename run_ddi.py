@@ -14,18 +14,16 @@ def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
     ### Then create demo prompt and list of demo image paths
     ###
     dataset_name = "DDI"
-    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo.csv", index_col=0)
-    print(demo_frame.head())
-    print(demo_frame.columns)
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo_metadata.csv", index_col=0)
     total_samples = fst12_ben + fst12_mal + fst56_ben + fst56_mal
     
-    fst56_frame = demo_frame[demo_frame['skin_tone'] == 56]
-    fst56_mal_frame = fst56_frame[fst56_frame['malignant'] == True].sample(fst56_mal, random_state=42)
-    fst56_ben_frame = fst56_frame[fst56_frame['malignant'] == False].sample(fst56_ben, random_state=42)
+    fst56_frame = demo_frame[demo_frame.skin_tone == 56]
+    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(fst56_mal, random_state=42)
+    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(fst56_ben, random_state=42)
     
-    fst12_frame = demo_frame[demo_frame['skin_tone'] == 12]
-    fst12_mal_frame = fst12_frame[fst12_frame['malignant'] == True].sample(fst12_mal, random_state=42)
-    fst12_ben_frame = fst12_frame[fst12_frame['malignant'] == False].sample(fst12_ben, random_state=42)
+    fst12_frame = demo_frame[demo_frame.skin_tone == 12]
+    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(fst12_mal, random_state=42)
+    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(fst12_ben, random_state=42)
     
     final_demo_frame = pd.concat([fst56_mal_frame,
                                   fst56_ben_frame,
@@ -39,8 +37,7 @@ def main(
     fst12_mal, 
     fst56_ben, 
     fst56_mal,
-    location="us-central1",
-    num_qns_per_round=1,
+    num_qns_per_round,
     detail="auto",
 ):
     """
@@ -60,14 +57,15 @@ def main(
     EXP_NAME = f"ddi_{fst12_ben}_{fst12_mal}_{fst56_ben}_{fst56_mal}_{model}_{num_qns_per_round}"
     
     demo_frame = create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal)
+
     dataset_name = "DDI"
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test.csv", index_col=0)
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
 
     if model.startswith("gpt"):
         api = GPT4VAPI(model=model, detail=detail)
     else:
         assert model == "Gemini1.5"
-        api = GeminiAPI(location=location)
+        api = GeminiAPI()
     print(EXP_NAME, f"test size = {len(test_df)}")
 
     # create demo_examples from my demo_frame
@@ -99,7 +97,7 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-Question: What is in the image above?
+Question: Which description best fits the skin lesion in the image above?
 Choices: A. Benign, B. Malignant
 Answer Choice: {demo[1]}
 """
@@ -110,7 +108,7 @@ Answer Choice: {demo[1]}
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-Question {qn_idx}: What is in the image above?
+Question {qn_idx}: Which description best fits the skin lesion in the image above?
 Choices {qn_idx}: A. Benign, B. Malignant
 
 """
@@ -155,7 +153,7 @@ Do not deviate from the above format. Repeat the format template for the answer.
                     pickle.dump(results, f)
                 exit()
 
-            # print(res)
+            print(res)
             results[qns_id] = (res,prompt,image_paths)
 
     # Update token usage and save the results
@@ -165,9 +163,9 @@ Do not deviate from the above format. Repeat the format template for the answer.
     with open(f"{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
-
         
 if __name__ == "__main__":
+    
     for num_malignant in [1,5,10,20,30]:
         main("gpt-4o-2024-05-13",
         num_malignant*3, 

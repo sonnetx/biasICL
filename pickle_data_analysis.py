@@ -11,41 +11,38 @@ def pickle_to_res(path):
         raw_pickle = pickle.load(f)
 
     results = {}
+    answer_prefix="Answer Choice "
 
-    def extract_ans_and_confidence(ans_str):
-        pattern = r"---BEGIN FORMAT TEMPLATE FOR QUESTION (\d+)---\s*Answer Choice \d+: ([A-Z])\s*Confidence Score \d+: ([\d.]+)\s*---END FORMAT TEMPLATE FOR QUESTION \d+---"
-        matches = re.findall(pattern, ans_str, re.DOTALL)
-        return {int(m[0]): (m[1], float(m[2])) for m in matches}
+    def extract_ans(ans_str, search_substring):
+        # Split the string into lines
+        lines = ans_str.split("\n")
+
+        for line in lines:
+            # Check if the line starts with the specified substring
+            if line.startswith(search_substring):
+                # If it does, add it to the list of extracted rows
+                return line[len(search_substring) :].strip()
+        return "ERROR"  # Answer not found
 
     for k, v in raw_pickle.items():
-        print(k, v)
-        if k == 'token_usage':
-            continue
-        
-        qns_idx = ast.literal_eval(k)
-        ans_str = v[0]  # The answer string is the first element in the tuple
-        
-        extracted_answers = extract_ans_and_confidence(ans_str)
-        
-        for idx, qn_idx in enumerate(qns_idx, start=1):
-            if idx in extracted_answers:
-                answer, confidence = extracted_answers[idx]
-                results[qn_idx] = (answer, confidence)
-                print(f"Question {qn_idx}: Answer = {answer}, Confidence = {confidence:.2f}")
-            else:
-                results[qn_idx] = ("ERROR", 0.0)
-                print(f"ERROR: Valid answer not found for question {qn_idx}")
-
+        if k != 'token_usage':  # Skip token_usage
+            qns_idx = ast.literal_eval(k)
+            for idx, qn_idx in enumerate(qns_idx):
+                results[qn_idx] = extract_ans(
+                    v[0], f"{answer_prefix}{idx+1}:"
+                )  # We start with question 1
+    
     return results
 
 
 def res_to_vec(results):
-    test_df = pd.read_csv('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/DDI/ddi_test.csv', index_col=0)
+    test_df = pd.read_csv('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/DDI/ddi_test_metadata.csv', index_col=0)
     num_errors = 0
     labels, preds, race = [], [], []
+    print(results)
     for i in test_df.itertuples():
         fst = '12' if i.skin_tone == 12 else '56'
-        if (i.Index not in results) or (str(results[i.Index]).startswith("ERROR")):
+        if (i.Index not in results) or (results[i.Index].startswith("ERROR")):
             num_errors += 1
 
             print(i.Index, f"answer not found")
@@ -57,16 +54,27 @@ def res_to_vec(results):
         preds.append(pred_text)
         race.append(fst)
         
+    # if num_errors != 0:
+    #     print(results)
     print(f"In total {num_errors} errors; len = {len(labels)}")
     return labels,preds,race
 
 def calculate_metrics(actual, predicted):
+    """
+    Calculate evaluation metrics from the actual and predicted labels.
+
+    Args:
+        actual: The actual labels.
+        predicted: The predicted labels.
+
+    Returns:
+        accuracy: The accuracy of the predictions.
+        tpr: The true positive rate (sensitivity).
+        tnr: The true negative rate (specificity).
+        f1_score: The F1 score of the predictions.
+    """
     predicted_choice = [p[0] for p in predicted]
-    # TP = sum((a == 'B' and p == 'B') for a, p in zip(actual, predicted))
-    # TN = sum((a == 'A' and p == 'A') for a, p in zip(actual, predicted))
-    # FP = sum((a == 'A' and p == 'B') for a, p in zip(actual, predicted))
-    # FN = sum((a == 'B' and p == 'A') for a, p in zip(actual, predicted))
-    
+
     TP = sum((a == 'B' and p == 'B') for a, p in zip(actual, predicted_choice))
     TN = sum((a == 'A' and p == 'A') for a, p in zip(actual, predicted_choice))
     FP = sum((a == 'A' and p == 'B') for a, p in zip(actual, predicted_choice))
@@ -94,38 +102,60 @@ def filter_by_race(actual, predicted, race, race_value):
     filtered_predicted = [p for p, r in zip(predicted, race) if r == race_value]
     return filtered_actual, filtered_predicted
 
-def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
-    biases = np.array(fst12) - np.array(fst56)
-    # labels = ['0,0,0,0', '0,30,0,30', '30,0,0,10', '30,10,0,0', '30,10,30,10']
-    
-    # Plot 1: Grouped bar plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy
-    x = np.arange(len(labels))  # the label locations
-    width = 0.25  # the width of the bars
+def plot_experiment_lines(bulk,fst12,fst56,score_type, labels):
+    """
+    Plot grouped line plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy.
+    Also plot bias between FST 1/2 and FST 5/6 accuracy.
 
-    # Use custom colors for the bars
-    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+    Parameters
+    ----------
+    bulk : List
+        List of bulk accuracy scores.
+    fst12 : List
+        List of FST 1/2 accuracy scores.
+    fst56 : List
+        List of FST 5/6 accuracy scores.
+    score_type : str
+        Type of score to plot (e.g. "Accuracy", "F1 score", etc.).
+    labels : List
+        List of labels for the x-axis.
+
+    Returns
+    -------
+    None
+    """
+    biases = np.array(fst12) - np.array(fst56)
+    
+    # Plot 1: Grouped line plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy
+    x = np.arange(len(labels))  # the label locations
+    
+    # Use custom colors for the lines
+    line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
     
     fig, ax1 = plt.subplots(figsize=(10, 6))
     
-    rects1 = ax1.bar(x - width, bulk, width, label=f'Aggregate {score_type}', color=bar_colors[0])
-    rects2 = ax1.bar(x, fst12, width, label=f'FST 1/2 {score_type}', color=bar_colors[1])
-    rects3 = ax1.bar(x + width, fst56, width, label=f'FST 5/6 {score_type}', color=bar_colors[2])
+    ax1.plot(x, bulk, label=f'Aggregate {score_type}', color=line_colors[0])
+    ax1.plot(x, fst12, label=f'FST 1/2 {score_type}', color=line_colors[1])
+    ax1.plot(x, fst56, label=f'FST 5/6 {score_type}', color=line_colors[2])
 
     # Add labels, title, and custom ticks
-#     ax1.set_ylim([0.30,0.9])
-    ax1.set_xlabel('Experiments (FST1/2 Benign, FST1/2 Malignant, FST5/6 Benign, FST5/6 Malignant)')
+    ax1.set_xlabel('Total number of samples used')
     ax1.set_ylabel(f'{score_type}')
-    ax1.set_title(f'{score_type} by Experiment and Skin Type')
+    ax1.set_title(f'{score_type} by Experiment')
 
     # Set wrapped labels
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels)  # Apply wrapped labels
 
     ax1.legend()
+
+    plt.tight_layout()  # Adjust layout to prevent clipping
+    plt.show()
+    plt.savefig(score_type + " lines.png")
     
     # Plot 2: Bias plot
     fig, ax2 = plt.subplots(figsize=(10, 6))
-    rects4 = ax2.bar(x, np.abs(biases), width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
+    ax2.plot(x, biases, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
     
     # Add labels, title, and custom ticks
     ax2.set_xlabel('Experiments')
@@ -140,10 +170,88 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
 
     plt.tight_layout()  # Adjust layout to prevent clipping
     plt.show()
-    plt.savefig("experiment.png")
+    plt.savefig(score_type + " biaslines.png")
 
+def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
+    """
+    Plot grouped bar plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy.
+    Also plot bias between FST 1/2 and FST 5/6 accuracy.
+
+    Parameters
+    ----------
+    bulk : List
+        List of bulk accuracy scores.
+    fst12 : List
+        List of FST 1/2 accuracy scores.
+    fst56 : List
+        List of FST 5/6 accuracy scores.
+    score_type : str
+        Type of score to plot (e.g. "Accuracy", "F1 score", etc.).
+    labels : List
+        List of labels for the x-axis.
+
+    Returns
+    -------
+    None
+    """
+    print(bulk,fst12,fst56)
+    biases = np.array(fst12) - np.array(fst56)
+    
+    # Plot 1: Grouped bar plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy
+    x = np.arange(len(labels))  # the label locations
+    print(len(x), len(bulk), len(fst12), len(fst56))
+    width = 0.25  # the width of the bars
+
+    # Use custom colors for the bars
+    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    
+    rects1 = ax1.bar(x - width, bulk, width, label=f'Aggregate {score_type}', color=bar_colors[0])
+    rects2 = ax1.bar(x, fst12, width, label=f'FST 1/2 {score_type}', color=bar_colors[1])
+    rects3 = ax1.bar(x + width, fst56, width, label=f'FST 5/6 {score_type}', color=bar_colors[2])
+
+    # Add labels, title, and custom ticks
+#     ax1.set_ylim([0.30,0.9])
+    ax1.set_xlabel('Total number of samples used')
+    ax1.set_ylabel(f'{score_type}')
+    ax1.set_title(f'{score_type} by Experiment')
+
+    # Set wrapped labels
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(labels)  # Apply wrapped labels
+
+    ax1.legend()
+
+    plt.tight_layout()  # Adjust layout to prevent clipping
+    plt.show()
+    plt.savefig(score_type + " bars.png")
+    
+    # Plot 2: Bias plot
+    fig, ax2 = plt.subplots(figsize=(10, 6))
+    # rects4 = ax2.bar(x, np.abs(biases), width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
+    rects4 = ax2.bar(x, (biases), width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
+    
+    # Add labels, title, and custom ticks
+    ax2.set_xlabel('Experiments')
+    ax2.set_ylabel('Bias')
+    ax2.set_title('Bias by Experiment')
+
+    # Set wrapped labels for second plot
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(labels)  # Apply wrapped labels
+    
+    ax2.legend()
+
+    plt.tight_layout()  # Adjust layout to prevent clipping
+    plt.show()
+    plt.savefig(score_type + " bias bars.png")
+
+# Main script
 if __name__ == "__main__":
-    exps = Path('.').glob('*.pkl') # find all pickle files
+    exps = Path('.').glob('*50.pkl')  # find all pickle files
+    print(exps)
+    # Initialize metric lists for each group
+    all_metrics = {'acc': [], 'tpr': [], 'fscore': [], 'labels': []}
 
     bulk_accs = []
     bulk_tprs = []
@@ -157,37 +265,28 @@ if __name__ == "__main__":
     fst56_tprs = []
     fst56_fscores = []
 
-    all_labels = []
     for exp in exps:
         exp = str(exp)
+        print(exp)
         label = exp.split("_")
-        final_label = ""
-        for i in range(1, 5):
-            final_label += label[i]
-            if i != 4:
-                final_label += ","
-
-        all_labels.append(final_label)
-
+        fst12_ben, fst12_mal, fst56_ben, fst56_mal = [int(label[i]) for i in range(1, 5)]
+        
+        # Create the label
+        final_label = ",".join(label[1:5])
+        
+        # Process results
         results = pickle_to_res(exp)
-        # print(results)
-        labels,preds,race = res_to_vec(results)
-        # print(labels,preds,race)
-
+        labels, preds, race = res_to_vec(results)
+        
+        # Calculate metrics for all data
         accuracy, tpr, tnr, fscore = calculate_metrics(labels, preds)
-        print(f"Accuracy: {accuracy}, TPR: {tpr}, TNR: {tnr}, F1: {fscore}")
-
-        # Filter for race '12'
+        
+        # Calculate metrics for race '12' and '56'
         actual_12, predicted_12 = filter_by_race(labels, preds, race, '12')
         accuracy_12, tpr_12, tnr_12, fscore_12 = calculate_metrics(actual_12, predicted_12)
-
-        # Filter for race '56'
+        
         actual_56, predicted_56 = filter_by_race(labels, preds, race, '56')
         accuracy_56, tpr_56, tnr_56, fscore_56 = calculate_metrics(actual_56, predicted_56)
-
-    #     # Output results
-    #     print(f"Race '12' - Accuracy: {accuracy_12}, TPR: {tpr_12}, TNR: {tnr_12}, F1: {fscore_12}")
-    #     print(f"Race '56' - Accuracy: {accuracy_56}, TPR: {tpr_56}, TNR: {tnr_56}, F1: {fscore_56}")
 
         bulk_accs.append(accuracy)
         bulk_tprs.append(tpr)
@@ -201,7 +300,20 @@ if __name__ == "__main__":
         fst56_tprs.append(tpr_56)
         fst56_fscores.append(fscore_56)
 
-    # labels = ['0,0,0,0', '0,30,0,30', '30,0,0,10', '30,10,0,0', '30,10,30,10']
-    plot_experiment_metrics(bulk_accs,fst12_accs,fst56_accs,'Accuracy', labels=all_labels)
-    plot_experiment_metrics(bulk_tprs,fst12_tprs,fst56_tprs,'TPR', labels=all_labels)
-    plot_experiment_metrics(bulk_fscores,fst12_fscores,fst56_fscores,'F1 Score', labels=all_labels)
+        all_metrics['labels'].append(final_label)
+        
+    
+    sorted_labels, sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs = zip(*sorted(zip(all_metrics['labels'], bulk_accs, fst12_accs, fst56_accs), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    plot_experiment_metrics(sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs, 'Accuracy', sorted_labels)
+    
+    sorted_labels, sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs = zip(*sorted(zip(all_metrics['labels'], bulk_tprs, fst12_tprs, fst56_tprs), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    plot_experiment_metrics(sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs, 'TPR', sorted_labels)
+    
+    sorted_labels, sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores = zip(*sorted(zip(all_metrics['labels'], bulk_fscores, fst12_fscores, fst56_fscores), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    plot_experiment_metrics(sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores, 'F1 Score', sorted_labels)
+
+
+    # Plot lines
+    plot_experiment_lines(sorted_bulk_accs,sorted_fst12_accs,sorted_fst56_accs,'Accuracy', sorted_labels)
+    plot_experiment_lines(sorted_bulk_tprs,sorted_fst12_tprs,sorted_fst56_tprs,'TPR', sorted_labels)
+    plot_experiment_lines(sorted_bulk_fscores,sorted_fst12_fscores,sorted_fst56_fscores,'F1 Score', sorted_labels)
