@@ -206,9 +206,13 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
     fig, ax1 = plt.subplots(figsize=(10, 6))
     
-    rects1 = ax1.bar(x - width, bulk, width, label=f'Aggregate {score_type}', color=bar_colors[0])
-    rects2 = ax1.bar(x, fst12, width, label=f'FST 1/2 {score_type}', color=bar_colors[1])
-    rects3 = ax1.bar(x + width, fst56, width, label=f'FST 5/6 {score_type}', color=bar_colors[2])
+    # Plot the zero-shot experiment as a horizontal line
+    ax1.axhline(y=bulk[0], color='black', linestyle='--', label='Zero-shot')
+    
+    # Plot the other experiments as bars
+    rects1 = ax1.bar(x[1:] - width, bulk[1:], width, label=f'Aggregate {score_type}', color=bar_colors[0])
+    rects2 = ax1.bar(x[1:], fst12[1:], width, label=f'FST 1/2 {score_type}', color=bar_colors[1])
+    rects3 = ax1.bar(x[1:] + width, fst56[1:], width, label=f'FST 5/6 {score_type}', color=bar_colors[2])
 
     # Add labels, title, and custom ticks
 #     ax1.set_ylim([0.30,0.9])
@@ -217,8 +221,8 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     ax1.set_title(f'{score_type} by Experiment')
 
     # Set wrapped labels
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(labels)  # Apply wrapped labels
+    ax1.set_xticks(x[1:])
+    ax1.set_xticklabels(labels[1:])  # Apply wrapped labels
 
     ax1.legend()
 
@@ -228,8 +232,11 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     
     # Plot 2: Bias plot
     fig, ax2 = plt.subplots(figsize=(10, 6))
-    # rects4 = ax2.bar(x, np.abs(biases), width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
-    rects4 = ax2.bar(x, (biases), width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
+    # Plot the zero-shot experiment as a horizontal line
+    ax2.axhline(y=biases[0], color='black', linestyle='--', label='Zero-shot')
+    
+    # Plot the other experiments as bars
+    rects4 = ax2.bar(x[1:], biases[1:], width, color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})')
     
     # Add labels, title, and custom ticks
     ax2.set_xlabel('Experiments')
@@ -237,8 +244,8 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     ax2.set_title('Bias by Experiment')
 
     # Set wrapped labels for second plot
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(labels)  # Apply wrapped labels
+    ax2.set_xticks(x[1:])
+    ax2.set_xticklabels(labels[1:])  # Apply wrapped labels
     
     ax2.legend()
 
@@ -248,7 +255,7 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
 
 # Main script
 if __name__ == "__main__":
-    exps = Path('.').glob('*50.pkl')  # find all pickle files
+    exps = Path('./ddi_results').glob('*.pkl')  # find all pickle files in results folder
     print(exps)
     # Initialize metric lists for each group
     all_metrics = {'acc': [], 'tpr': [], 'fscore': [], 'labels': []}
@@ -265,8 +272,9 @@ if __name__ == "__main__":
     fst56_tprs = []
     fst56_fscores = []
 
-    for exp in exps:
-        exp = str(exp)
+    exps = list(exps)
+    for i, exp in enumerate(exps):
+        exp = str(exp)[12:]
         print(exp)
         label = exp.split("_")
         fst12_ben, fst12_mal, fst56_ben, fst56_mal = [int(label[i]) for i in range(1, 5)]
@@ -275,7 +283,8 @@ if __name__ == "__main__":
         final_label = ",".join(label[1:5])
         
         # Process results
-        results = pickle_to_res(exp)
+        print(exps[i])
+        results = pickle_to_res(exps[i])
         labels, preds, race = res_to_vec(results)
         
         # Calculate metrics for all data
@@ -302,14 +311,23 @@ if __name__ == "__main__":
 
         all_metrics['labels'].append(final_label)
         
+    print(all_metrics['labels'])
+    sorted_labels = sorted(all_metrics['labels'], key=lambda x: (int(x.split(',')[0]) > int(x.split(',')[3]), int(x.split(',')[1]) > int(x.split(',')[3]), int(x.split(',')[2]) > int(x.split(',')[3]), int(x.split(',')[0]) == int(x.split(',')[3]), int(x.split(',')[1]) == int(x.split(',')[3]), int(x.split(',')[2]) == int(x.split(',')[3]), int(x.split(',')[0]) < int(x.split(',')[3]), int(x.split(',')[1]) < int(x.split(',')[3]), int(x.split(',')[2]) < int(x.split(',')[3])))
+    print(sorted_labels)
     
-    sorted_labels, sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs = zip(*sorted(zip(all_metrics['labels'], bulk_accs, fst12_accs, fst56_accs), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    sorted_bulk_accs = [bulk_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst12_accs = [fst12_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst56_accs = [fst56_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
     plot_experiment_metrics(sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs, 'Accuracy', sorted_labels)
     
-    sorted_labels, sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs = zip(*sorted(zip(all_metrics['labels'], bulk_tprs, fst12_tprs, fst56_tprs), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    sorted_bulk_tprs = [bulk_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst12_tprs = [fst12_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst56_tprs = [fst56_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
     plot_experiment_metrics(sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs, 'TPR', sorted_labels)
     
-    sorted_labels, sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores = zip(*sorted(zip(all_metrics['labels'], bulk_fscores, fst12_fscores, fst56_fscores), key=lambda x: (x[0].split('_')[1] > x[0].split('_')[3], x[0].split('_')[1] == x[0].split('_')[3], x[0].split('_')[1] < x[0].split('_')[3])))
+    sorted_bulk_fscores = [bulk_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst12_fscores = [fst12_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
+    sorted_fst56_fscores = [fst56_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
     plot_experiment_metrics(sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores, 'F1 Score', sorted_labels)
 
 

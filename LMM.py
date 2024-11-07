@@ -144,12 +144,6 @@ class GeminiAPI:
         self.temperature = temperature
         self.client = genai.GenerativeModel(model_name=self.model, system_instruction=system_instruction)
 
-        # self.safety_settings = {
-        #     generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        #     generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        #     generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        #     generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        # }
         self.safety_settings = [
                 {"category": "HARM_CATEGORY_DANGEROUS", "threshold": "BLOCK_NONE"},
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -231,7 +225,13 @@ class GeminiAPI:
             )
         except:
             pass
-        if content_only:
-            return responses.text
+        
+        try:
+            if content_only:
+                return responses.text
+        except AttributeError:
+            print(responses.prompt_feedback)
+            print("Error occurred, retrying")
+            return self(prompt, image_paths, real_call, max_tokens, content_only)
         else:
             return responses
