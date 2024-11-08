@@ -255,83 +255,96 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
 
 # Main script
 if __name__ == "__main__":
+    models = ["Gemini", "gpt", "claude"]
     exps = Path('./ddi_results').glob('*.pkl')  # find all pickle files in results folder
     print(exps)
-    # Initialize metric lists for each group
-    all_metrics = {'acc': [], 'tpr': [], 'fscore': [], 'labels': []}
-
-    bulk_accs = []
-    bulk_tprs = []
-    bulk_fscores = []
-
-    fst12_accs = []
-    fst12_tprs = []
-    fst12_fscores = []
-
-    fst56_accs = []
-    fst56_tprs = []
-    fst56_fscores = []
 
     exps = list(exps)
-    for i, exp in enumerate(exps):
-        exp = str(exp)[12:]
-        print(exp)
-        label = exp.split("_")
-        fst12_ben, fst12_mal, fst56_ben, fst56_mal = [int(label[i]) for i in range(1, 5)]
-        
-        # Create the label
-        final_label = ",".join(label[1:5])
-        
-        # Process results
-        print(exps[i])
-        results = pickle_to_res(exps[i])
-        labels, preds, race = res_to_vec(results)
-        
-        # Calculate metrics for all data
-        accuracy, tpr, tnr, fscore = calculate_metrics(labels, preds)
-        
-        # Calculate metrics for race '12' and '56'
-        actual_12, predicted_12 = filter_by_race(labels, preds, race, '12')
-        accuracy_12, tpr_12, tnr_12, fscore_12 = calculate_metrics(actual_12, predicted_12)
-        
-        actual_56, predicted_56 = filter_by_race(labels, preds, race, '56')
-        accuracy_56, tpr_56, tnr_56, fscore_56 = calculate_metrics(actual_56, predicted_56)
 
-        bulk_accs.append(accuracy)
-        bulk_tprs.append(tpr)
-        bulk_fscores.append(fscore)
-        
-        fst12_accs.append(accuracy_12)
-        fst12_tprs.append(tpr_12)
-        fst12_fscores.append(fscore_12)
-        
-        fst56_accs.append(accuracy_56)
-        fst56_tprs.append(tpr_56)
-        fst56_fscores.append(fscore_56)
+    # Loop through each experiment
+    for model in models:
+        model_exps = [exp for exp in exps if model in str(exp)]
+        if len(model_exps) == 0:
+            print(f"No experiments found for model: {model}")
+            continue
+        # Initialize metric lists for each group
+        all_metrics = {'acc': [], 'tpr': [], 'fscore': [], 'labels': []}
 
-        all_metrics['labels'].append(final_label)
+        bulk_accs = []
+        bulk_tprs = []
+        bulk_fscores = []
+
+        fst12_accs = []
+        fst12_tprs = []
+        fst12_fscores = []
+
+        fst56_accs = []
+        fst56_tprs = []
+        fst56_fscores = []
+
+        for i, exp in enumerate(model_exps):
+            exp = str(exp)[12:]
+            print(exp)
+            label = exp.split("_")
+            fst12_ben, fst12_mal, fst56_ben, fst56_mal = [int(label[i]) for i in range(1, 5)]
+            
+            # Create the label
+            final_label = ",".join(label[1:5])
+            
+            # Process results
+            print(exps[i])
+            results = pickle_to_res(exps[i])
+            labels, preds, race = res_to_vec(results)
+            
+            # Calculate metrics for all data
+            accuracy, tpr, tnr, fscore = calculate_metrics(labels, preds)
+            
+            # Calculate metrics for race '12' and '56'
+            actual_12, predicted_12 = filter_by_race(labels, preds, race, '12')
+            accuracy_12, tpr_12, tnr_12, fscore_12 = calculate_metrics(actual_12, predicted_12)
+            
+            actual_56, predicted_56 = filter_by_race(labels, preds, race, '56')
+            accuracy_56, tpr_56, tnr_56, fscore_56 = calculate_metrics(actual_56, predicted_56)
+
+            bulk_accs.append(accuracy)
+            bulk_tprs.append(tpr)
+            bulk_fscores.append(fscore)
+            
+            fst12_accs.append(accuracy_12)
+            fst12_tprs.append(tpr_12)
+            fst12_fscores.append(fscore_12)
+            
+            fst56_accs.append(accuracy_56)
+            fst56_tprs.append(tpr_56)
+            fst56_fscores.append(fscore_56)
+
+            all_metrics['labels'].append(final_label)
+            
+        print(all_metrics['labels'])
+        sorted_labels = sorted(all_metrics['labels'], key=lambda x: (int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0 and int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # 0,0,0,0 first
+                                                                        int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0, # 0,0,_,_ second
+                                                                        int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # _,_,0,0 third
+                                                                        all(int(y) > 0 for y in x.split(',')), # all positive fourth
+                                                                        tuple(int(y) for y in x.split(',')))) # then sort by the tuple
+        print(sorted_labels)
         
-    print(all_metrics['labels'])
-    sorted_labels = sorted(all_metrics['labels'], key=lambda x: (int(x.split(',')[0]) > int(x.split(',')[3]), int(x.split(',')[1]) > int(x.split(',')[3]), int(x.split(',')[2]) > int(x.split(',')[3]), int(x.split(',')[0]) == int(x.split(',')[3]), int(x.split(',')[1]) == int(x.split(',')[3]), int(x.split(',')[2]) == int(x.split(',')[3]), int(x.split(',')[0]) < int(x.split(',')[3]), int(x.split(',')[1]) < int(x.split(',')[3]), int(x.split(',')[2]) < int(x.split(',')[3])))
-    print(sorted_labels)
-    
-    sorted_bulk_accs = [bulk_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst12_accs = [fst12_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst56_accs = [fst56_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    plot_experiment_metrics(sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs, 'Accuracy', sorted_labels)
-    
-    sorted_bulk_tprs = [bulk_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst12_tprs = [fst12_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst56_tprs = [fst56_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
-    plot_experiment_metrics(sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs, 'TPR', sorted_labels)
-    
-    sorted_bulk_fscores = [bulk_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst12_fscores = [fst12_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
-    sorted_fst56_fscores = [fst56_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
-    plot_experiment_metrics(sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores, 'F1 Score', sorted_labels)
+        sorted_bulk_accs = [bulk_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst12_accs = [fst12_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst56_accs = [fst56_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        plot_experiment_metrics(sorted_bulk_accs, sorted_fst12_accs, sorted_fst56_accs, model + ' Accuracy', sorted_labels)
+        
+        sorted_bulk_tprs = [bulk_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst12_tprs = [fst12_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst56_tprs = [fst56_tprs[all_metrics['labels'].index(x)] for x in sorted_labels]
+        plot_experiment_metrics(sorted_bulk_tprs, sorted_fst12_tprs, sorted_fst56_tprs, model + ' TPR', sorted_labels)
+        
+        sorted_bulk_fscores = [bulk_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst12_fscores = [fst12_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
+        sorted_fst56_fscores = [fst56_fscores[all_metrics['labels'].index(x)] for x in sorted_labels]
+        plot_experiment_metrics(sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores, model + ' F1 Score', sorted_labels)
 
 
-    # Plot lines
-    plot_experiment_lines(sorted_bulk_accs,sorted_fst12_accs,sorted_fst56_accs,'Accuracy', sorted_labels)
-    plot_experiment_lines(sorted_bulk_tprs,sorted_fst12_tprs,sorted_fst56_tprs,'TPR', sorted_labels)
-    plot_experiment_lines(sorted_bulk_fscores,sorted_fst12_fscores,sorted_fst56_fscores,'F1 Score', sorted_labels)
+        # Plot lines
+        plot_experiment_lines(sorted_bulk_accs,sorted_fst12_accs,sorted_fst56_accs, model + ' Accuracy', sorted_labels)
+        plot_experiment_lines(sorted_bulk_tprs,sorted_fst12_tprs,sorted_fst56_tprs, model + ' TPR', sorted_labels)
+        plot_experiment_lines(sorted_bulk_fscores,sorted_fst12_fscores,sorted_fst56_fscores, model + ' F1 Score', sorted_labels)

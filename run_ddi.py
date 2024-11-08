@@ -165,13 +165,13 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    # num_malignant = 0
-    # main("gpt-4o-2024-05-13",
-    # num_malignant*3, 
-    # num_malignant, 
-    # num_malignant*3, 
-    # num_malignant,
-    # 50,)
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("gpt-4o-2024-05-13",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     50,)
 
     for num_malignant in [1,5,10,20,30]:
         main("Gemini1.5",
