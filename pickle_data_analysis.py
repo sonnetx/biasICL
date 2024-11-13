@@ -170,7 +170,7 @@ def plot_experiment_lines(bulk,fst12,fst56,score_type, labels):
 
     plt.tight_layout()  # Adjust layout to prevent clipping
     plt.show()
-    plt.savefig(score_type + " biaslines.png")
+    plt.savefig('plots/' + score_type + " bias lines.png")
 
 def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     """
@@ -194,20 +194,20 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
     -------
     None
     """
-    print(bulk,fst12,fst56)
     biases = np.array(fst12) - np.array(fst56)
     
     # Plot 1: Grouped bar plot for bulk accuracy, FST 1/2 accuracy, and FST 5/6 accuracy
     x = np.arange(len(labels))  # the label locations
-    print(len(x), len(bulk), len(fst12), len(fst56))
     width = 0.25  # the width of the bars
 
     # Use custom colors for the bars
     bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
     fig, ax1 = plt.subplots(figsize=(10, 6))
     
-    # Plot the zero-shot experiment as a horizontal line
-    ax1.axhline(y=bulk[0], color='black', linestyle='--', label='Zero-shot')
+    # Plot the zero-shot experiment as a horizontal line for each group
+    ax1.axhline(y=bulk[0], color=bar_colors[0], linestyle='--', label='Zero-shot')
+    ax1.axhline(y=fst12[0], color=bar_colors[1], linestyle='--', label='Zero-shot FST 1/2')
+    ax1.axhline(y=fst56[0], color=bar_colors[2], linestyle='--', label='Zero-shot FST 5/6')
     
     # Plot the other experiments as bars
     rects1 = ax1.bar(x[1:] - width, bulk[1:], width, label=f'Aggregate {score_type}', color=bar_colors[0])
@@ -251,19 +251,18 @@ def plot_experiment_metrics(bulk,fst12,fst56,score_type, labels):
 
     plt.tight_layout()  # Adjust layout to prevent clipping
     plt.show()
-    plt.savefig(score_type + " bias bars.png")
+    plt.savefig('plots/' + score_type + " bias bars.png")
 
 # Main script
 if __name__ == "__main__":
-    models = ["Gemini", "gpt", "claude"]
+    models = ["gpt", "Gemini", "claude"]
     exps = Path('./ddi_results').glob('*.pkl')  # find all pickle files in results folder
-    print(exps)
-
     exps = list(exps)
-
+    print(len(exps), exps)
     # Loop through each experiment
     for model in models:
         model_exps = [exp for exp in exps if model in str(exp)]
+        print(len(model_exps), model_exps)
         if len(model_exps) == 0:
             print(f"No experiments found for model: {model}")
             continue
@@ -292,11 +291,13 @@ if __name__ == "__main__":
             final_label = ",".join(label[1:5])
             
             # Process results
-            print(exps[i])
             results = pickle_to_res(exps[i])
             labels, preds, race = res_to_vec(results)
             
             # Calculate metrics for all data
+            if len(labels) == 0 or len(preds) == 0:
+                print(f"Skipping experiment {exp} due to zero length labels or preds")
+                continue
             accuracy, tpr, tnr, fscore = calculate_metrics(labels, preds)
             
             # Calculate metrics for race '12' and '56'
@@ -319,15 +320,13 @@ if __name__ == "__main__":
             fst56_fscores.append(fscore_56)
 
             all_metrics['labels'].append(final_label)
+            sorted_labels = sorted(all_metrics['labels'], key=lambda x: (int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0 and int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # 0,0,0,0 first
+                                                                            int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0, # 0,0,_,_ second
+                                                                            int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # _,_,0,0 third
+                                                                            all(int(y) > 0 for y in x.split(',')), # all positive fourth
+                                                                            tuple(int(y) for y in x.split(',')))) # then sort by the tuple
+            print(sorted_labels)
             
-        print(all_metrics['labels'])
-        sorted_labels = sorted(all_metrics['labels'], key=lambda x: (int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0 and int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # 0,0,0,0 first
-                                                                        int(x.split(',')[0]) == 0 and int(x.split(',')[1]) == 0, # 0,0,_,_ second
-                                                                        int(x.split(',')[2]) == 0 and int(x.split(',')[3]) == 0, # _,_,0,0 third
-                                                                        all(int(y) > 0 for y in x.split(',')), # all positive fourth
-                                                                        tuple(int(y) for y in x.split(',')))) # then sort by the tuple
-        print(sorted_labels)
-        
         sorted_bulk_accs = [bulk_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
         sorted_fst12_accs = [fst12_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
         sorted_fst56_accs = [fst56_accs[all_metrics['labels'].index(x)] for x in sorted_labels]
@@ -344,7 +343,7 @@ if __name__ == "__main__":
         plot_experiment_metrics(sorted_bulk_fscores, sorted_fst12_fscores, sorted_fst56_fscores, model + ' F1 Score', sorted_labels)
 
 
-        # Plot lines
-        plot_experiment_lines(sorted_bulk_accs,sorted_fst12_accs,sorted_fst56_accs, model + ' Accuracy', sorted_labels)
-        plot_experiment_lines(sorted_bulk_tprs,sorted_fst12_tprs,sorted_fst56_tprs, model + ' TPR', sorted_labels)
-        plot_experiment_lines(sorted_bulk_fscores,sorted_fst12_fscores,sorted_fst56_fscores, model + ' F1 Score', sorted_labels)
+        # # Plot lines
+        # plot_experiment_lines(sorted_bulk_accs,sorted_fst12_accs,sorted_fst56_accs, model + ' Accuracy', sorted_labels)
+        # plot_experiment_lines(sorted_bulk_tprs,sorted_fst12_tprs,sorted_fst56_tprs, model + ' TPR', sorted_labels)
+        # plot_experiment_lines(sorted_bulk_fscores,sorted_fst12_fscores,sorted_fst56_fscores, model + ' F1 Score', sorted_labels)

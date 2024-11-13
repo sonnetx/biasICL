@@ -160,40 +160,56 @@ Do not deviate from the above format. Repeat the format template for the answer.
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"{EXP_NAME}.pkl", "wb") as f:
+    with open(f"./ddi_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
         
 if __name__ == "__main__":
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    for num_malignant in [1,5,10,20,30]:
-        main("Gemini1.5",
+    for num_malignant in [10,20]:
+        main("gpt-4o-2024-05-13",
         num_malignant*3, 
         num_malignant, 
         0, 
         0,
         50,)
-    
-    for num_malignant in [1,5,10,20,30]:
-        main("Gemini1.5",
-        0,
-        0,
-        num_malignant*3, 
-        num_malignant, 
-        50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        # main("gpt-4o-2024-05-13",
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
+    for num_malignant in [1]:
+        main("gpt-4o-2024-05-13", 
+        0, 
+        0,
         num_malignant*3, 
         num_malignant,
         50,)
+    
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("gpt-4o-2024-05-13", 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
+
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     10,)
+    
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("Gemini1.5",
+    #     0,
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     50,)
+
+    # for num_malignant in [1,5,10,20,30]:
+    #     # main("gpt-4o-2024-05-13",
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)

@@ -327,14 +327,14 @@ class GeminiAPI:
         self.last_time = start_time
         responses = self.client.generate_content(
             messages,
-            # generation_config={
-            #     "max_output_tokens": min(max_tokens, 8192),
-            #     "temperature": self.temperature,
-            # },
-            # safety_settings=self.safety_settings,
-            # stream=False,
+            generation_config={
+                "max_output_tokens": min(max_tokens, 8192),
+                "temperature": self.temperature,
+            },
+            safety_settings=self.safety_settings,
+            stream=False,
         )
-
+        print(responses)
         end_time = time.time()
         self.response_times.append(end_time - start_time)
 
@@ -350,12 +350,14 @@ class GeminiAPI:
         except:
             pass
         
-        try:
-            if content_only:
-                return responses.text
-        except AttributeError:
-            print(responses.prompt_feedback)
-            print("Error occurred, retrying")
-            return self(prompt, image_paths, real_call, max_tokens, content_only)
+        if content_only:
+            if responses:
+                # Access the parts of the first candidate
+                content_parts = responses.text
+                print(content_parts)
+                return content_parts
+            else:
+                print("Error occurred, retrying")
+                return self(prompt, image_paths, real_call, max_tokens, content_only)
         else:
             return responses
