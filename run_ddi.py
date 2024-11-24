@@ -4,7 +4,7 @@ from tqdm import tqdm
 import random
 import pickle
 import numpy as np
-from LMM import GPT4VAPI, GeminiAPI
+from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
 def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
@@ -63,9 +63,11 @@ def main(
 
     if model.startswith("gpt"):
         api = GPT4VAPI(model=model, detail=detail)
-    else:
+    elif model.startswith("Gemini"):
         assert model == "Gemini1.5"
         api = GeminiAPI()
+    elif model.startswith("claude"):
+        api = ClaudeAPI()
     print(EXP_NAME, f"test size = {len(test_df)}")
 
     # create demo_examples from my demo_frame
@@ -165,21 +167,29 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    for num_malignant in [10,20]:
-        main("gpt-4o-2024-05-13",
+    for num_malignant in [1,5,10,20,30]:
+        main("claude", 
         num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-    for num_malignant in [1]:
-        main("gpt-4o-2024-05-13", 
-        0, 
-        0,
+        num_malignant,
         num_malignant*3, 
         num_malignant,
         50,)
+
+    # for num_malignant in [10,20]:
+    #     main("gpt-4o-2024-05-13",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     50,)
+
+    # for num_malignant in [1]:
+    #     main("gpt-4o-2024-05-13", 
+    #     0, 
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
     
     # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13", 
@@ -196,20 +206,17 @@ if __name__ == "__main__":
     #     0, 
     #     0,
     #     10,)
-    
-    # for num_malignant in [1,5,10,20,30]:
+
     #     main("Gemini1.5",
     #     0,
     #     0,
     #     num_malignant*3, 
     #     num_malignant, 
-    #     50,)
+    #     10,)
 
-    # for num_malignant in [1,5,10,20,30]:
-    #     # main("gpt-4o-2024-05-13",
     #     main("Gemini1.5",
     #     num_malignant*3, 
     #     num_malignant, 
     #     num_malignant*3, 
     #     num_malignant,
-    #     50,)
+    #     10,)

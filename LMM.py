@@ -9,6 +9,8 @@ import traceback
 import random
 from PIL import Image
 from dotenv import load_dotenv
+from io import BytesIO
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +23,7 @@ import anthropic
 class ClaudeAPI:
     def __init__(
         self,
-        model="claude-3-5-sonnet-20240620",
+        model="claude-3-5-sonnet-20241022",
         img_token="<<IMG>>",
         seed=66,
         temperature=0,
@@ -47,23 +49,24 @@ class ClaudeAPI:
         self.response_times = []
 
     def generate_image_url(self, image_path, detail="low"):
-        # Given an image_path, return a dict
         # Function to encode the image
         def encode_image(image_path):
             if str(image_path).lower().endswith("tif"):
                 with Image.open(image_path) as img:
                     img.convert("RGB").save("temp.jpeg", "JPEG")
                 image_path = "temp.jpeg"
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
+                
+            with Image.open(image_path) as img:
+                # Convert to RGB if needed
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Save to bytes buffer
+                buffer = BytesIO()
+                img.save(buffer, format="JPEG")
+                return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64, {encode_image(image_path)}",
-                "detail": detail,
-            },
-        }
+        return encode_image(image_path)
 
     def generate_text_url(self, text):
         return {"type": "text", "text": text}
@@ -89,7 +92,7 @@ class ClaudeAPI:
         if prompt[0].strip() != "":
             content.append({
                 "type": "text",
-                "text": self.generate_text_url(prompt[0])
+                "text": prompt[0],
             })
 
         for idx in range(1, len(prompt)):
@@ -107,7 +110,7 @@ class ClaudeAPI:
             if prompt[idx].strip() != "":
                 content.append({
                     "type": "text",
-                    "text": self.generate_text_url(prompt[idx])
+                    "text": prompt[idx]
                 })
         
         # Create the messages structure
@@ -121,8 +124,6 @@ class ClaudeAPI:
             model=self.model,
             messages=messages,
             max_tokens=min(4096, max_tokens),
-            # temperature=self.temperature,
-            # seed=self.seed,
         )
 
         end_time = time.time()
@@ -130,10 +131,20 @@ class ClaudeAPI:
 
         results = [prompt, image_paths, response, end_time - start_time]
 
+        # Update token usage with defaults if not available
+        if hasattr(response, 'usage'):
+            completion_tokens = getattr(response.usage, 'completion_tokens', 0)
+            prompt_tokens = getattr(response.usage, 'prompt_tokens', 0)
+            total_tokens = getattr(response.usage, 'total_tokens', 0)
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+            total_tokens = 0
+
         self.token_usage = (
-            self.token_usage[0] + response.usage.completion_tokens,
-            self.token_usage[1] + response.usage.prompt_tokens,
-            self.token_usage[2] + response.usage.total_tokens,
+            self.token_usage[0] + completion_tokens,
+            self.token_usage[1] + prompt_tokens,
+            self.token_usage[2] + total_tokens
         )
 
         if content_only:
