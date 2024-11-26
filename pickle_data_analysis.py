@@ -307,8 +307,9 @@ def sort_experiments(experiment_names, model_name="gpt", num_shots=50):
                 return experiment_info["fst56_ben"]
             else:
                 return experiment_info["fst12_ben"]
-            
-        experiments[category] = (sorted(filenames, key=sort_key), [sort_key(filename) for filename in experiments[category]])
+        
+        filenames.sort(key=sort_key)
+        experiments[category] = (filenames, sorted([sort_key(filename) for filename in filenames]))
 
     return experiments
 
@@ -330,6 +331,7 @@ if __name__ == "__main__":
             continue
     
         for category, (filenames, shots) in sorted_experiments.items():
+            print(shots)
             print(f"Processing category: {category}")
             if len(filenames) == 0:
                 print(f"No experiments found for category: {category}")
