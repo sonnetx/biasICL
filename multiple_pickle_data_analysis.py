@@ -390,7 +390,7 @@ def sort_experiments(experiment_names, model_name="gpt", num_shots=50):
 # Main script
 if __name__ == "__main__":
     models = ["gpt-4o-2024-05-13"]
-    exps = Path('./ddi_results').glob('*.pkl')  # find all pickle files in results folder
+    exps = Path('./ddi_results').rglob('*.pkl')  # find all pickle files in results folder and subdirs
     exps = [str(exp) for exp in exps]
     print(len(exps), exps)
     # Loop through each experiment
