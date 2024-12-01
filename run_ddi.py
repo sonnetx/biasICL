@@ -19,17 +19,17 @@ def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
     total_samples = fst12_ben + fst12_mal + fst56_ben + fst56_mal
     
     fst56_frame = demo_frame[demo_frame.skin_tone == 56]
-    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(fst56_mal, random_state=42)
-    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(fst56_ben, random_state=42)
+    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(fst56_mal, random_state=132)
+    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(fst56_ben, random_state=132)
     
     fst12_frame = demo_frame[demo_frame.skin_tone == 12]
-    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(fst12_mal, random_state=42)
-    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(fst12_ben, random_state=42)
+    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(fst12_mal, random_state=132)
+    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(fst12_ben, random_state=132)
     
     final_demo_frame = pd.concat([fst56_mal_frame,
                                   fst56_ben_frame,
                                   fst12_mal_frame,
-                                  fst12_ben_frame]).sample(total_samples, random_state=42) # sample full num to shuffle
+                                  fst12_ben_frame]).sample(total_samples, random_state=132) # sample full num to shuffle
     return final_demo_frame
 
 def main(
@@ -89,7 +89,7 @@ def main(
     else:
         results = {}
 
-    test_df = test_df.sample(frac=1, random_state=66)  # Shuffle the test set
+    test_df = test_df.sample(frac=1, random_state=132)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
@@ -176,56 +176,32 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        main("claude",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-    for num_malignant in [1,5,10,20,30]:
-        main("claude", 
-        0, 
-        0,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-    
-    for num_malignant in [1,5,10,20,30]:
-        main("claude", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-
-    for num_malignant in [1,5,10,20,30]:
-        main("claude",
-        num_malignant, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-    for num_malignant in [1,5,10,20,30]:
-        main("claude", 
-        0, 
-        0,
-        num_malignant, 
-        num_malignant,
-        50,)
-    
-    for num_malignant in [1,5,10,20,30]:
-        main("claude", 
-        num_malignant, 
-        num_malignant,
-        num_malignant, 
-        num_malignant,
-        50,)
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("claude",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     50,)
 
     # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
+    #     main("claude", 
+    #     0, 
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
+    
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("claude", 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
+
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("claude",
     #     num_malignant, 
     #     num_malignant, 
     #     0, 
@@ -233,7 +209,7 @@ if __name__ == "__main__":
     #     50,)
 
     # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13", 
+    #     main("claude", 
     #     0, 
     #     0,
     #     num_malignant, 
@@ -241,12 +217,36 @@ if __name__ == "__main__":
     #     50,)
     
     # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13", 
+    #     main("claude", 
     #     num_malignant, 
     #     num_malignant,
     #     num_malignant, 
     #     num_malignant,
-    #     50,)
+        # 50,)
+
+    for num_malignant in [0, 1,5,10,20,30]:
+        main("gpt-4o-2024-05-13",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+
+    for num_malignant in [1,5,10,20,30]:
+        main("gpt-4o-2024-05-13", 
+        0, 
+        0,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+    
+    for num_malignant in [1,5,10,20,30]:
+        main("gpt-4o-2024-05-13", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
 
     # for num_malignant in [1,5,10,20,30]:
     #     main("Gemini1.5",

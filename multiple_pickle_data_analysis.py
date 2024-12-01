@@ -6,6 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import re
 from sklearn.utils import resample
+from collections import defaultdict
 
 def pickle_to_res(path):
     with open(path, "rb") as f:
@@ -408,7 +409,19 @@ if __name__ == "__main__":
             if len(filenames) == 0:
                 print(f"No experiments found for category: {category}")
                 continue
-            bulk_metrics, fst12_metrics, fst56_metrics = calculate_bootstrap_metrics(filenames)
-            plot_experiment_metrics_with_ci(bulk_metrics, fst12_metrics, fst56_metrics, "accuracy", shots, use_error_bars=True, label=category)
-            plot_experiment_metrics_with_ci(bulk_metrics, fst12_metrics, fst56_metrics, "tpr", shots, use_error_bars=True, label=category)
-            plot_experiment_metrics_with_ci(bulk_metrics, fst12_metrics, fst56_metrics, "fscore", shots, use_error_bars=True, label=category)
+            overall_bulk_metrics = []
+            overall_fst12_metrics = []
+            overall_fst56_metrics = []
+            filenames_by_subdir = defaultdict(list)
+            for filename in filenames:
+                subdir = Path(filename).parent.name
+                filenames_by_subdir[subdir].append(filename)
+            print(filenames_by_subdir)
+            for subdir, subdir_filenames in filenames_by_subdir.items():
+                bulk_metrics, fst12_metrics, fst56_metrics = calculate_bootstrap_metrics(filenames)
+                overall_bulk_metrics.append(bulk_metrics)
+                overall_fst12_metrics.append(fst12_metrics)
+                overall_fst56_metrics.append(fst56_metrics)
+            plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "accuracy", shots, use_error_bars=True, label=category) # overall_bulk_metrics, fst12_metrics, fst56_metrics, "accuracy", shots, use_error_bars=True, label=category)
+            plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "tpr", shots, use_error_bars=True, label=category)
+            plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "fscore", shots, use_error_bars=True, label=category)
