@@ -171,22 +171,22 @@ def plot_experiment_results(bulk_metrics, fst12_metrics, fst56_metrics, score_ty
     line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
 
     # Calculate statistics for each experiment
-    bulk_means = [np.mean(exp) for exp in bulk_metrics['mean']]
-    bulk_stds = [np.std(exp) for exp in bulk_metrics['std']]
-    bulk_mins = [np.min(exp) for exp in bulk_metrics['mean']]
-    bulk_maxs = [np.max(exp) for exp in bulk_metrics['mean']]
+    bulk_means = [np.mean([d['mean'][i] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
+    bulk_stds = [np.std([d['std'][i] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['std']))]
+    bulk_mins = [np.min([d['mean'][i] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
+    bulk_maxs = [np.max([d['mean'][i] for d in bulk_metrics])for i in range(len(bulk_metrics[0]['mean']))]
     bulk_ranges = [bulk_maxs[i] - bulk_mins[i] for i in range(len(bulk_mins))]
 
-    fst12_means = [np.mean(exp) for exp in fst12_metrics['mean']]
-    fst12_stds = [np.std(exp) for exp in fst12_metrics['std']]
-    fst12_mins = [np.min(exp) for exp in fst12_metrics['mean']]
-    fst12_maxs = [np.max(exp) for exp in fst12_metrics['mean']]
+    fst12_means = [np.mean([d['mean'][i] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
+    fst12_stds = [np.std([d['std'][i] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['std']))]
+    fst12_mins = [np.min([d['mean'][i] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
+    fst12_maxs = [np.max([d['mean'][i] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
     fst12_ranges = [fst12_maxs[i] - fst12_mins[i] for i in range(len(fst12_mins))]
 
-    fst56_means = [np.mean(exp) for exp in fst56_metrics['mean']]
-    fst56_stds = [np.std(exp) for exp in fst56_metrics['std']]
-    fst56_mins = [np.min(exp) for exp in fst56_metrics['mean']]
-    fst56_maxs = [np.max(exp) for exp in fst56_metrics['mean']]
+    fst56_means = [np.mean([d['mean'][i] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
+    fst56_stds = [np.std([d['std'][i] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['std']))]
+    fst56_mins = [np.min([d['mean'][i] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
+    fst56_maxs = [np.max([d['mean'][i] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
     fst56_ranges = [fst56_maxs[i] - fst56_mins[i] for i in range(len(fst56_mins))]
 
     
@@ -322,7 +322,7 @@ def parse_experiment_name(filename, model_name="gpt", num_shots=50):
     """Parses the experiment name to extract relevant information."""
     normalized_filename = filename.replace("\\", "/")
     pattern = (
-        rf"ddi_results/ddi_(?P<fst12_ben>\d+)_(?P<fst12_mal>\d+)_"
+        rf"ddi_results/[^/]+/ddi_(?P<fst12_ben>\d+)_(?P<fst12_mal>\d+)_"
         rf"(?P<fst56_ben>\d+)_(?P<fst56_mal>\d+)_{model_name}_" 
         rf"{num_shots}\.pkl"
     )
