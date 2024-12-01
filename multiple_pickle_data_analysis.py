@@ -352,6 +352,8 @@ def sort_experiments(experiment_names, model_name="gpt", num_shots=50):
     for filename in experiment_names:
         experiment_info = parse_experiment_name(filename, model_name=model_name, num_shots=num_shots)
         print(experiment_info)
+        if experiment_info is None:
+            continue
         if all(val == 0 for val in experiment_info.values()):
             for key in experiments.keys():
                 experiments[key].append(filename)
