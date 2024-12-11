@@ -137,6 +137,8 @@ def calculate_bootstrap_metrics(exps):
     
     for exp in exps:
         results = pickle_to_res(exp)
+        if "90" in exp:
+            continue
         labels, preds, race = res_to_vec(results)
         
         # Calculate bulk metrics
@@ -161,162 +163,132 @@ def filter_by_race(actual, predicted, race, race_value):
     filtered_predicted = [p for p, r in zip(predicted, race) if r == race_value]
     return filtered_actual, filtered_predicted
 
-import numpy as np
-import matplotlib.pyplot as plt
+def extract_stats(metrics, score_type):
+    """
+    Extracts and calculates statistics (means, stds, min, max, ranges) for given metrics and score_type.
+    """
+    means = [np.array([d['mean'][i][score_type] for d in metrics]) for i in range(len(metrics[0]['mean']))]
+    stds = [np.array([d['std'][i][score_type] for d in metrics]) for i in range(len(metrics[0]['std']))]
+
+    means_aggregated = [np.mean(m) for m in means]
+    stds_aggregated = [np.mean(s) for s in stds]  # Correcting earlier use.
+    mins = [np.min(m) for m in means]
+    maxs = [np.max(m) for m in means]
+    ranges = [max_val - min_val for max_val, min_val in zip(maxs, mins)]
+
+    return means_aggregated, stds_aggregated, mins, maxs, ranges
 
 def plot_experiment_results(bulk_metrics, fst12_metrics, fst56_metrics, score_type, shots, use_error_bars=True, label=""):
+    # Extract stats for the 3 sets
+    bulk_means, bulk_stds, bulk_mins, bulk_maxs, bulk_ranges = extract_stats(bulk_metrics, score_type)
+    fst12_means, fst12_stds, fst12_mins, fst12_maxs, fst12_ranges = extract_stats(fst12_metrics, score_type)
+    fst56_means, fst56_stds, fst56_mins, fst56_maxs, fst56_ranges = extract_stats(fst56_metrics, score_type)
+
+    # Plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    
-    # Use custom colors for the lines
-    line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+    line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
 
-    # Calculate statistics for each experiment
-    bulk_means = [np.mean([d['mean'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
-    bulk_stds = [np.std([d['std'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['std']))]
-    bulk_mins = [np.min([d['mean'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
-    bulk_maxs = [np.max([d['mean'][i][score_type] for d in bulk_metrics])for i in range(len(bulk_metrics[0]['mean']))]
-    bulk_ranges = [bulk_maxs[i] - bulk_mins[i] for i in range(len(bulk_mins))]
+    # Error Bars (means & range for clear diff use)
+    ax1.errorbar(shots, bulk_means, yerr=bulk_ranges if use_error_bars else None, fmt='o-', color=line_colors[0],
+                 label=f'Aggregate {score_type}', linewidth=2, capsize=5)
+    ax1.errorbar(shots, fst12_means, yerr=fst12_ranges if use_error_bars else None, fmt='s-', color=line_colors[1],
+                 label=f'FST 1/2 {score_type}', linewidth=2, capsize=5)
+    ax1.errorbar(shots, fst56_means, yerr=fst56_ranges if use_error_bars else None, fmt='^-', color=line_colors[2],
+                 label=f'FST 5/6 {score_type}', linewidth=2, capsize=5)
 
-    fst12_means = [np.mean([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
-    fst12_stds = [np.std([d['std'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['std']))]
-    fst12_mins = [np.min([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
-    fst12_maxs = [np.max([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
-    fst12_ranges = [fst12_maxs[i] - fst12_mins[i] for i in range(len(fst12_mins))]
-
-    fst56_means = [np.mean([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
-    fst56_stds = [np.std([d['std'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['std']))]
-    fst56_mins = [np.min([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
-    fst56_maxs = [np.max([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
-    fst56_ranges = [fst56_maxs[i] - fst56_mins[i] for i in range(len(fst56_mins))]
-
-    
-    ax1.errorbar(shots, bulk_means, yerr=bulk_ranges, fmt='o-', 
-                color=line_colors[0], label=f'Aggregate {score_type}', 
-                linewidth=2, capsize=5, capthick=1, elinewidth=1)
-    
-    ax1.errorbar(shots, fst12_means, yerr=fst12_ranges, fmt='s-',
-                color=line_colors[1], label=f'FST 1/2 {score_type}',
-                linewidth=2, capsize=5, capthick=1, elinewidth=1)
-    
-    ax1.errorbar(shots, fst56_means, yerr=fst56_ranges, fmt='^-',
-                color=line_colors[2], label=f'FST 5/6 {score_type}',
-                linewidth=2, capsize=5, capthick=1, elinewidth=1)
-    
     ax1.set_xlabel('Number of Shots')
     ax1.set_ylabel(f'{score_type}')
-    ax1.set_title(f'{score_type} by Number of Shots and Skin Type')
+    ax1.set_title(f'{score_type} by Number of Shots')
     ax1.legend()
     ax1.grid(True, linestyle='--', alpha=0.7)
-    
-    # Plot bias with confidence intervals
+
+    # Bias between FST 12 - 56
     biases_mean = np.array(fst12_means) - np.array(fst56_means)
     bias_mins = np.array(fst12_mins) - np.array(fst56_maxs)
     bias_maxs = np.array(fst12_maxs) - np.array(fst56_mins)
     bias_ranges = bias_maxs - bias_mins
 
-    ax2.errorbar(shots, biases_mean, yerr=bias_ranges, fmt='o-',
-                color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})',
-                linewidth=2, capsize=5, capthick=1, elinewidth=1)
+    ax2.errorbar(shots, biases_mean, yerr=bias_ranges if use_error_bars else None, fmt='o-', color='purple',
+                 label=f'Bias (FST 1/2 - 5/6)', linewidth=2, capsize=5)
 
     ax2.set_xlabel('Number of Shots')
     ax2.set_ylabel('Bias')
-    ax2.set_title('Bias by Number of Shots')
+    ax2.set_title('Bias Analysis')
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
-    
-    fig_name = f"{label}_{score_type}_by_shots_and_skin_type"
-    fig.savefig("Multiple_experiments_plots/" + fig_name + ".png", dpi=300, bbox_inches='tight')
+
+    fig_name = f"{label}_{score_type}_by_shots_bias.png"
+    fig.savefig(f"Multiple_experiments_plots/{fig_name}", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 
-def plot_experiment_metrics_with_ci(bulk_metrics, fst12_metrics, fst56_metrics, score_type, shots, use_error_bars=False, label=""):
-    """
-    Plot experiment metrics with confidence intervals
+# def plot_experiment_results(bulk_metrics, fst12_metrics, fst56_metrics, score_type, shots, use_error_bars=True, label=""):
+#     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     
-    Parameters:
-    bulk_metrics, fst12_metrics, fst56_metrics: dictionaries containing means and standard deviations
-    score_type: string indicating the type of score being plotted ('accuracy', 'tpr', or 'fscore')
-    shots: list of integers representing the number of shots for each experiment
-    use_error_bars: boolean indicating whether to use error bars instead of fill-between for uncertainty
-    """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+#     # Use custom colors for the lines
+#     line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+
+#     # Calculate statistics for each experiment
+#     bulk_means = [np.mean([d['mean'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
+#     bulk_stds = [np.std([d['std'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['std']))]
+#     bulk_mins = [np.min([d['mean'][i][score_type] for d in bulk_metrics]) for i in range(len(bulk_metrics[0]['mean']))]
+#     bulk_maxs = [np.max([d['mean'][i][score_type] for d in bulk_metrics])for i in range(len(bulk_metrics[0]['mean']))]
+#     bulk_ranges = [bulk_maxs[i] - bulk_mins[i] for i in range(len(bulk_mins))]
+
+#     fst12_means = [np.mean([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
+#     fst12_stds = [np.std([d['std'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['std']))]
+#     fst12_mins = [np.min([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
+#     fst12_maxs = [np.max([d['mean'][i][score_type] for d in fst12_metrics]) for i in range(len(fst12_metrics[0]['mean']))]
+#     fst12_ranges = [fst12_maxs[i] - fst12_mins[i] for i in range(len(fst12_mins))]
+
+#     fst56_means = [np.mean([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
+#     fst56_stds = [np.std([d['std'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['std']))]
+#     fst56_mins = [np.min([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
+#     fst56_maxs = [np.max([d['mean'][i][score_type] for d in fst56_metrics]) for i in range(len(fst56_metrics[0]['mean']))]
+#     fst56_ranges = [fst56_maxs[i] - fst56_mins[i] for i in range(len(fst56_mins))]
+
+#     print(bulk_means, bulk_ranges, fst12_means, fst12_ranges, fst56_means, fst56_ranges)
     
-    # Use custom colors for the lines
-    line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+#     # Plot the results
+#     ax1.errorbar(shots, bulk_means, yerr=bulk_ranges, fmt='o-', 
+#                 color=line_colors[0], label=f'Aggregate {score_type}', 
+#                 linewidth=2, capsize=5, capthick=1, elinewidth=1)
     
-    # Extract means and standard deviations
-    bulk_means = [m[score_type.lower()] for m in bulk_metrics['mean']]
-    bulk_stds = [s[score_type.lower()] for s in bulk_metrics['std']]
+#     ax1.errorbar(shots, fst12_means, yerr=fst12_ranges, fmt='s-',
+#                 color=line_colors[1], label=f'FST 1/2 {score_type}',
+#                 linewidth=2, capsize=5, capthick=1, elinewidth=1)
     
-    fst12_means = [m[score_type.lower()] for m in fst12_metrics['mean']]
-    fst12_stds = [s[score_type.lower()] for s in fst12_metrics['std']]
+#     ax1.errorbar(shots, fst56_means, yerr=fst56_ranges, fmt='^-',
+#                 color=line_colors[2], label=f'FST 5/6 {score_type}',
+#                 linewidth=2, capsize=5, capthick=1, elinewidth=1)
     
-    fst56_means = [m[score_type.lower()] for m in fst56_metrics['mean']]
-    fst56_stds = [s[score_type.lower()] for s in fst56_metrics['std']]
+#     ax1.set_xlabel('Number of Shots')
+#     ax1.set_ylabel(f'{score_type}')
+#     ax1.set_title(f'{score_type} by Number of Shots and Skin Type')
+#     ax1.legend()
+#     ax1.grid(True, linestyle='--', alpha=0.7)
     
-    # Plot lines and confidence intervals
-    if use_error_bars:
-        ax1.errorbar(shots, bulk_means, yerr=bulk_stds, fmt='o-', 
-                    color=line_colors[0], label=f'Aggregate {score_type}', 
-                    linewidth=2, capsize=5, capthick=1, elinewidth=1)
-        
-        ax1.errorbar(shots, fst12_means, yerr=fst12_stds, fmt='s-',
-                    color=line_colors[1], label=f'FST 1/2 {score_type}',
-                    linewidth=2, capsize=5, capthick=1, elinewidth=1)
-        
-        ax1.errorbar(shots, fst56_means, yerr=fst56_stds, fmt='^-',
-                    color=line_colors[2], label=f'FST 5/6 {score_type}',
-                    linewidth=2, capsize=5, capthick=1, elinewidth=1)
-    else:
-        ax1.plot(shots, bulk_means, 'o-', color=line_colors[0], label=f'Aggregate {score_type}', linewidth=2)
-        ax1.fill_between(shots, 
-                        np.array(bulk_means) - np.array(bulk_stds),
-                        np.array(bulk_means) + np.array(bulk_stds),
-                        color=line_colors[0], alpha=0.2)
-        
-        ax1.plot(shots, fst12_means, 's-', color=line_colors[1], label=f'FST 1/2 {score_type}', linewidth=2)
-        ax1.fill_between(shots,
-                        np.array(fst12_means) - np.array(fst12_stds),
-                        np.array(fst12_means) + np.array(fst12_stds),
-                        color=line_colors[1], alpha=0.2)
-        
-        ax1.plot(shots, fst56_means, '^-', color=line_colors[2], label=f'FST 5/6 {score_type}', linewidth=2)
-        ax1.fill_between(shots,
-                        np.array(fst56_means) - np.array(fst56_stds),
-                        np.array(fst56_means) + np.array(fst56_stds),
-                        color=line_colors[2], alpha=0.2)
+#     # Plot bias with confidence intervals
+#     biases_mean = np.array(fst12_means) - np.array(fst56_means)
+#     bias_mins = np.array(fst12_mins) - np.array(fst56_maxs)
+#     bias_maxs = np.array(fst12_maxs) - np.array(fst56_mins)
+#     bias_ranges = bias_maxs - bias_mins
+
+#     print(biases_mean, bias_ranges)
+
+#     ax2.errorbar(shots, biases_mean, yerr=bias_ranges, fmt='o-',
+#                 color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})',
+#                 linewidth=2, capsize=5, capthick=1, elinewidth=1)
+
+#     ax2.set_xlabel('Number of Shots')
+#     ax2.set_ylabel('Bias')
+#     ax2.set_title('Bias by Number of Shots')
+#     ax2.legend()
+#     ax2.grid(True, linestyle='--', alpha=0.7)
     
-    ax1.set_xlabel('Number of Shots')
-    ax1.set_ylabel(f'{score_type}')
-    ax1.set_title(f'{score_type} by Number of Shots and Skin Type ({label})')
-    ax1.legend()
-    ax1.grid(True, linestyle='--', alpha=0.7)
-    
-    # Plot bias with confidence intervals
-    biases_mean = np.array(fst12_means) - np.array(fst56_means)
-    biases_std = np.sqrt(np.array(fst12_stds)**2 + np.array(fst56_stds)**2)  # Error propagation
-    
-    if use_error_bars:
-        ax2.errorbar(shots, biases_mean, yerr=biases_std, fmt='o-',
-                    color='purple', label=f'Bias (FST 1/2 - FST 5/6 {score_type})',
-                    linewidth=2, capsize=5, capthick=1, elinewidth=1)
-    else:
-        ax2.plot(shots, biases_mean, 'o-', color='purple', 
-                label=f'Bias (FST 1/2 - FST 5/6 {score_type})', linewidth=2)
-        ax2.fill_between(shots,
-                        biases_mean - biases_std,
-                        biases_mean + biases_std,
-                        color='purple', alpha=0.2)
-    
-    ax2.set_xlabel('Number of Shots')
-    ax2.set_ylabel('Bias')
-    ax2.set_title(f'Bias by Number of Shots ({label})')
-    ax2.legend()
-    ax2.grid(True, linestyle='--', alpha=0.7)
-    
-    fig_name = f"{label}_{score_type}_by_shots_and_skin_type"
-    fig.savefig(fig_name + ".png", dpi=300, bbox_inches='tight')
-    plt.close(fig)
+#     fig_name = f"{label}_{score_type}_by_shots_and_skin_type"
+#     fig.savefig("Multiple_experiments_plots/" + fig_name + ".png", dpi=300, bbox_inches='tight')
+#     plt.close(fig)
 
 def parse_experiment_name(filename, model_name="gpt", num_shots=50):
     """Parses the experiment name to extract relevant information."""
@@ -394,18 +366,16 @@ if __name__ == "__main__":
     models = ["gpt-4o-2024-05-13"]
     exps = Path('./ddi_results').rglob('*.pkl')  # find all pickle files in results folder and subdirs
     exps = [str(exp) for exp in exps]
-    print(len(exps), exps)
     # Loop through each experiment
     for model in models:
         model_exps = [exp for exp in exps if model in exp]
-        print(len(model_exps), model_exps)
         sorted_experiments = sort_experiments(model_exps, model_name=model)
-        print(len(sorted_experiments), sorted_experiments)
         if len(sorted_experiments) == 0:
             print(f"No experiments found for model: {model}")
             continue
     
         for category, (filenames, shots) in sorted_experiments.items():
+            shots = list(set(shots))[:-1]
             print(shots)
             print(f"Processing category: {category}")
             if len(filenames) == 0:
@@ -416,14 +386,16 @@ if __name__ == "__main__":
             overall_fst56_metrics = []
             filenames_by_subdir = defaultdict(list)
             for filename in filenames:
+                if "90" in filename:
+                    continue
                 subdir = Path(filename).parent.name
                 filenames_by_subdir[subdir].append(filename)
-            print(filenames_by_subdir)
             for subdir, subdir_filenames in filenames_by_subdir.items():
-                bulk_metrics, fst12_metrics, fst56_metrics = calculate_bootstrap_metrics(filenames)
+                bulk_metrics, fst12_metrics, fst56_metrics = calculate_bootstrap_metrics(subdir_filenames)
                 overall_bulk_metrics.append(bulk_metrics)
                 overall_fst12_metrics.append(fst12_metrics)
                 overall_fst56_metrics.append(fst56_metrics)
+            print(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics)
             plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "accuracy", shots, use_error_bars=True, label=category) # overall_bulk_metrics, fst12_metrics, fst56_metrics, "accuracy", shots, use_error_bars=True, label=category)
             plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "tpr", shots, use_error_bars=True, label=category)
             plot_experiment_results(overall_bulk_metrics, overall_fst12_metrics, overall_fst56_metrics, "fscore", shots, use_error_bars=True, label=category)
