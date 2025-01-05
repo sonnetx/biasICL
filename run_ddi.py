@@ -168,85 +168,54 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+    for num_malignant in [0,1,3,5,7,10]:
+        main("claude", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
 
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude", 
-    #     0, 
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-    
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude",
-    #     num_malignant, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude", 
-    #     0, 
-    #     0,
-    #     num_malignant, 
-    #     num_malignant,
-    #     50,)
-    
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("claude", 
-    #     num_malignant, 
-    #     num_malignant,
-    #     num_malignant, 
-    #     num_malignant,
-        # 50,)
-
-    for num_malignant in [0, 1,5,10,20,30]:
-        main("gpt-4o-2024-05-13",
+    for num_malignant in [1,3,5,7,10]:
+        main("claude",
         num_malignant*3, 
         num_malignant, 
         0, 
         0,
         50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        main("gpt-4o-2024-05-13", 
+    for num_malignant in [1,3,5,7,10]:
+        main("claude", 
         0, 
         0,
         num_malignant*3, 
         num_malignant,
         50,)
     
-    for num_malignant in [1,5,10,20,30]:
-        main("gpt-4o-2024-05-13", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
+
+    # for num_malignant in [0, 1,5,10,20,30]:
+    #     main("gpt-4o-2024-05-13",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     50,)
+
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("gpt-4o-2024-05-13", 
+    #     0, 
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
+    
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("gpt-4o-2024-05-13", 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
 
     # for num_malignant in [1,5,10,20,30]:
     #     main("Gemini1.5",
