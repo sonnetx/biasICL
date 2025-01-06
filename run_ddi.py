@@ -168,7 +168,7 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    for num_malignant in [0,1,3,5,7,10]:
+    for num_malignant in [1]:
         main("claude", 
         num_malignant*3, 
         num_malignant,
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         num_malignant,
         50,)
 
-    for num_malignant in [1,3,5,7,10]:
+    for num_malignant in [3, 10]:
         main("claude",
         num_malignant*3, 
         num_malignant, 
