@@ -8,59 +8,46 @@ from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
 
-def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
+def create_demo(white_ben, white_mal, black_ben, black_mal):
     ###
     ### Load demo example frame
     ### Choose relevant demo examples
     ### Then create demo prompt and list of demo image paths
     ###
-    dataset_name = "DDI"
-    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo_metadata.csv", index_col=0)
-    total_samples = fst12_ben + fst12_mal + fst56_ben + fst56_mal
+    dataset_name = "chexpert_binary_PNA"
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
+    total_samples = white_ben + white_mal + black_ben + black_mal
     
-    fst56_frame = demo_frame[demo_frame.skin_tone == 56]
-    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(fst56_mal, random_state=141)
-    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(fst56_ben, random_state=141)
+    black_frame = demo_frame[demo_frame.binary_race == "Black"]
+    black_mal_frame = black_frame[black_frame.Pneumonia == True].sample(black_mal, random_state=141)
+    black_ben_frame = black_frame[black_frame.Pneumonia == False].sample(black_ben, random_state=141)
     
-    fst12_frame = demo_frame[demo_frame.skin_tone == 12]
-    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(fst12_mal, random_state=141)
-    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(fst12_ben, random_state=141)
+    white_frame = demo_frame[demo_frame.binary_race == "White"]
+    white_mal_frame = white_frame[white_frame.Pneumonia == True].sample(white_mal, random_state=141)
+    white_ben_frame = white_frame[white_frame.Pneumonia == False].sample(white_ben, random_state=141)
     
-    final_demo_frame = pd.concat([fst56_mal_frame,
-                                  fst56_ben_frame,
-                                  fst12_mal_frame,
-                                  fst12_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+    final_demo_frame = pd.concat([black_mal_frame,
+                                  black_ben_frame,
+                                  white_mal_frame,
+                                  white_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
     return final_demo_frame
 
 def main(
     model,
-    fst12_ben, 
-    fst12_mal, 
-    fst56_ben, 
-    fst56_mal,
+    white_ben, 
+    white_mal, 
+    black_ben, 
+    black_mal,
     num_qns_per_round,
     detail="auto",
 ):
-    """
-    Run queries for each test case in the test_df dataframe using demonstrating examples sampled from demo_df dataframe.
 
-    model[str]: the specific model checkpoint to use e.g. "Gemini1.5", "gpt-4-turbo-2024-04-09"
-    fst12_ben[int]: number of demonstrating examples to include from Fitzpatrick Skin Types I/II from class benign
-    fst12_mal[int]: number of demonstrating examples to include from Fitzpatrick Skin Types I/II from class malignant
-    fst56_ben[int]: number of demonstrating examples to include from Fitzpatrick Skin Types V/VI from class benign
-    fst56_mal[int]: number of demonstrating examples to include from Fitzpatrick Skin Types V/VI from class malignant
-    location[str]: Vertex AI location e.g. "us-central1","us-west1", not used for GPT-series models
-    num_qns_per_round[int]: number of queries to be batched in one API call
-    detail[str]: resolution level for GPT4(V)-series models, not used for Gemini models
-    """
-
-#     class_to_idx = {class_name: idx for idx, class_name in enumerate(classes)}
-    EXP_NAME = f"ddi_{fst12_ben}_{fst12_mal}_{fst56_ben}_{fst56_mal}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"chexpert_{white_ben}_{white_mal}_{black_ben}_{black_mal}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal)
+    demo_frame = create_demo(white_ben, white_mal, black_ben, black_mal)
 
-    dataset_name = "DDI"
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
+    dataset_name = "chexpert_binary_PNA"
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
 
     if model.startswith("gpt"):
         api = GPT4VAPI(model=model, detail=detail)
@@ -73,12 +60,11 @@ def main(
 
     # create demo_examples from my demo_frame
     # list of tuples
-    # i[0] = (path_to_image, class name)
     demo_paths = []
     demo_labels = []
     for i,row in demo_frame.iterrows():
-        ans_choice = "B" if row.malignant == True else "A"
-        demo_paths.append('/home/groups/roxanad/ddi/' + row.DDI_file)
+        ans_choice = "B" if row.Pneumonia == True else "A"
+        demo_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
         demo_labels.append(ans_choice)
     demo_examples = list(zip(demo_paths, demo_labels))
     
@@ -100,19 +86,19 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-Question: Which description best fits the skin lesion in the image above?
-Choices: A. Benign, B. Malignant
+Question: Which diagnosis best fits the chest x-ray in the image above?
+Choices: A. Pneumonia, B. No Finding
 Answer Choice: {demo[1]}
 """
         qns_idx = []
-        for idx, i in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
-            qns_idx.append(i.Index)
-            image_paths.append('/home/groups/roxanad/ddi/' + i.DDI_file)
+        for idx, row in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
+            qns_idx.append(row.Index)
+            image_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-Question {qn_idx}: Which description best fits the skin lesion in the image above?
-Choices {qn_idx}: A. Benign, B. Malignant
+Question {qn_idx}: Which diagnosis best fits the chest x-ray in the image above?
+Choices {qn_idx}: A. Pneumonia, B. No Finding
 
 """
         for i in range(start_idx, end_idx):
@@ -163,8 +149,30 @@ Do not deviate from the above format. Repeat the format template for the answer.
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"./ddi_results/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"./chexpert_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
+    
+    results_csv_path = os.path.join(os.getcwd(), f"{dataset_name}_{model}_{num_qns_per_round}_results.csv")
+    if not os.path.isfile(results_csv_path):
+        # Create a new CSV file with the specified columns
+        columns = [
+            'num_shots_per_class',  # Number of shots per class
+            'black_race_split',  # Proportion of black examples in the malignant class
+            'accuracy',  # Accuracy of the model
+            'acc_error',  # Error of the accuracy (std dev of the mean)
+            'f1',  # F1 score of the model
+            'f1_error',  # Error of the F1 score (std dev of the mean)
+            'black_accuracy',  # Accuracy of the model on black examples
+            'black_acc_error',  # Error of the accuracy on black examples (std dev of the mean)
+            'black_f1',  # F1 score of the model on black examples
+            'black_f1_error',  # Error of the F1 score on black examples (std dev of the mean)
+            'white_accuracy',  # Accuracy of the model on white examples
+            'white_acc_error',  # Error of the accuracy on white examples (std dev of the mean)
+            'white_f1',  # F1 score of the model on white examples
+            'white_f1_error',  # Error of the F1 score on white examples (std dev of the mean)
+        ]
+        df = pd.DataFrame(columns=columns)
+        df.to_csv(results_csv_path, index=False)
 
         
 if __name__ == "__main__":
@@ -192,8 +200,15 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
     
+    for num_malignant in [0]:
+        main("gpt-4o-2024-05-13",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
 
-    # for num_malignant in [0, 1,5,10,20,30]:
+    # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13",
     #     num_malignant*3, 
     #     num_malignant, 
@@ -217,24 +232,24 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     10,)
 
-        main("Gemini1.5",
-        0,
-        0,
-        num_malignant*3, 
-        num_malignant, 
-        50,)
+    #     main("Gemini1.5",
+    #     0,
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     10,)
 
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        num_malignant*3, 
-        num_malignant,
-        50,)
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     10,)

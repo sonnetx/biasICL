@@ -292,16 +292,6 @@ class GeminiAPI:
         self.last_time = None
         self.interval = 0.5 + 60 / RPM
 
-    # def generate_image_url(self, image_path):
-    #     # Given an image_path, return a dict
-    #     # Function to encode the image
-    #     def encode_image(image_path):
-    #         with open(image_path, "rb") as image_file:
-    #             return base64.b64encode(image_file.read()).decode("utf-8")
-
-    #     image1 = Part.from_data(mime_type="image/jpeg", data=encode_image(image_path))
-    #     return image1
-
     def __call__(
         self, prompt, image_paths=[], real_call=True, max_tokens=50, content_only=True
     ):
@@ -328,7 +318,6 @@ class GeminiAPI:
         for idx in range(1, len(prompt)):
             img = Image.open(image_paths[idx - 1])
             messages.append(img)
-            # messages.append(self.generate_image_url(image_paths[idx - 1]))
             if prompt[idx].strip() != "":
                 messages.append(prompt[idx])
         if not real_call:
@@ -338,12 +327,12 @@ class GeminiAPI:
         self.last_time = start_time
         responses = self.client.generate_content(
             messages,
-            generation_config={
-                "max_output_tokens": min(max_tokens, 8192),
-                "temperature": self.temperature,
-            },
-            safety_settings=self.safety_settings,
-            stream=False,
+            # generation_config={
+            #     "max_output_tokens": min(max_tokens, 8192),
+            #     "temperature": self.temperature,
+            # },
+            # safety_settings=self.safety_settings,
+            # stream=False,
         )
         print(responses)
         end_time = time.time()
