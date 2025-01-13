@@ -57,6 +57,9 @@ class ClaudeAPI:
                 image_path = "temp.jpeg"
                 
             with Image.open(image_path) as img:
+                # Resize if needed
+                if img.size[0] > 128 or img.size[1] > 128:
+                    img = img.resize((128, 128))
                 # Convert to RGB if needed
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
@@ -188,8 +191,25 @@ class GPT4VAPI:
                 with Image.open(image_path) as img:
                     img.convert("RGB").save("temp.jpeg", "JPEG")
                 image_path = "temp.jpeg"
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
+            # with open(image_path, "rb") as image_file:
+            #     # Resize if needed
+            #     if image_file.size[0] > 128 or image_file.size[1] > 128:
+            #         image_file = image_file.resize((128, 128))
+
+            #     return base64.b64encode(image_file.read()).decode("utf-8")
+
+            # Open the image using Pillow
+            with Image.open(image_path) as img:
+                # Resize if needed
+                if img.size[0] > 128 or img.size[1] > 128:
+                    img = img.resize((128, 128))
+
+                # Save the image to a temporary buffer
+                with BytesIO() as buffer:
+                    img.save(buffer, format="JPEG")
+                    encoded_string = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+            return encoded_string
 
         return {
             "type": "image_url",
@@ -317,6 +337,8 @@ class GeminiAPI:
             messages = []
         for idx in range(1, len(prompt)):
             img = Image.open(image_paths[idx - 1])
+            if img.size[0] > 128 or img.size[1] > 128:
+                img = img.resize((128, 128))
             messages.append(img)
             if prompt[idx].strip() != "":
                 messages.append(prompt[idx])
@@ -327,12 +349,6 @@ class GeminiAPI:
         self.last_time = start_time
         responses = self.client.generate_content(
             messages,
-            # generation_config={
-            #     "max_output_tokens": min(max_tokens, 8192),
-            #     "temperature": self.temperature,
-            # },
-            # safety_settings=self.safety_settings,
-            # stream=False,
         )
         print(responses)
         end_time = time.time()

@@ -149,7 +149,7 @@ Do not deviate from the above format. Repeat the format template for the answer.
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"./chexpert_results/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
     
     results_csv_path = os.path.join(os.getcwd(), f"{dataset_name}_{model}_{num_qns_per_round}_results.csv")
@@ -176,7 +176,15 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    # for num_malignant in [1]:
+
+    # main("claude", 
+    #     0, 
+    #     0,
+    #     0, 
+    #     0,
+    #     50,)
+    
+    # for num_malignant in [1,3,5,7,10]:
     #     main("claude", 
     #     num_malignant*3, 
     #     num_malignant,
@@ -184,7 +192,6 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
 
-    # for num_malignant in [3, 10]:
     #     main("claude",
     #     num_malignant*3, 
     #     num_malignant, 
@@ -192,7 +199,6 @@ if __name__ == "__main__":
     #     0,
     #     50,)
 
-    # for num_malignant in [1,3,5,7,10]:
     #     main("claude", 
     #     0, 
     #     0,
@@ -200,7 +206,14 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
     
-    for num_malignant in [0]:
+    main("gpt-4o-2024-05-13",
+        0, 
+        0, 
+        0, 
+        0,
+        50,)
+
+    for num_malignant in [1,5,10,20,30]:
         main("gpt-4o-2024-05-13",
         num_malignant*3, 
         num_malignant, 
@@ -208,28 +221,25 @@ if __name__ == "__main__":
         0,
         50,)
 
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
+        main("gpt-4o-2024-05-13", 
+        0, 
+        0,
+        num_malignant*3, 
+        num_malignant,
+        50,)
 
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13", 
+        main("gpt-4o-2024-05-13", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+
+    # main("Gemini1.5",
+    #     0, 
+    #     0, 
     #     0, 
     #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-    
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
     #     50,)
 
     # for num_malignant in [1,5,10,20,30]:
@@ -238,18 +248,18 @@ if __name__ == "__main__":
     #     num_malignant, 
     #     0, 
     #     0,
-    #     10,)
+    #     50,)
 
     #     main("Gemini1.5",
     #     0,
     #     0,
     #     num_malignant*3, 
     #     num_malignant, 
-    #     10,)
+    #     50,)
 
     #     main("Gemini1.5",
     #     num_malignant*3, 
     #     num_malignant, 
     #     num_malignant*3, 
     #     num_malignant,
-    #     10,)
+    #     50,)
