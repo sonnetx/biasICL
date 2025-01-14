@@ -191,12 +191,6 @@ class GPT4VAPI:
                 with Image.open(image_path) as img:
                     img.convert("RGB").save("temp.jpeg", "JPEG")
                 image_path = "temp.jpeg"
-            # with open(image_path, "rb") as image_file:
-            #     # Resize if needed
-            #     if image_file.size[0] > 128 or image_file.size[1] > 128:
-            #         image_file = image_file.resize((128, 128))
-
-            #     return base64.b64encode(image_file.read()).decode("utf-8")
 
             # Open the image using Pillow
             with Image.open(image_path) as img:
@@ -206,7 +200,7 @@ class GPT4VAPI:
 
                 # Save the image to a temporary buffer
                 with BytesIO() as buffer:
-                    img.save(buffer, format="JPEG")
+                    img.convert("RGB").save(buffer, format="JPEG")
                     encoded_string = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
             return encoded_string
@@ -254,8 +248,8 @@ class GPT4VAPI:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": messages}],
-            max_tokens=min(4096, max_tokens),
-            temperature=self.temperature,
+            # max_tokens=min(4096, max_tokens),
+            # temperature=self.temperature,
             seed=self.seed,
         )
 

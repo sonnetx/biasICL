@@ -62,7 +62,7 @@ def main(
     dataset_name = "DDI"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
 
-    if model.startswith("gpt"):
+    if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
     elif model.startswith("Gemini"):
         assert model == "Gemini1.5"
@@ -193,6 +193,28 @@ if __name__ == "__main__":
     #     50,)
     
 
+    for num_malignant in [0, 1,5,10,20,30]:
+        main("o1-2024-12-17",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+
+        main("o1-2024-12-17", 
+        0, 
+        0,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+    
+        main("o1-2024-12-17", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+
     # for num_malignant in [0, 1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13",
     #     num_malignant*3, 
@@ -201,7 +223,6 @@ if __name__ == "__main__":
     #     0,
     #     50,)
 
-    # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13", 
     #     0, 
     #     0,
@@ -209,7 +230,6 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
     
-    # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13", 
     #     num_malignant*3, 
     #     num_malignant,
@@ -217,24 +237,24 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
+    # for num_malignant in [1,5,10,20,30]:
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     0, 
+    #     0,
+    #     50,)
 
-        main("Gemini1.5",
-        0,
-        0,
-        num_malignant*3, 
-        num_malignant, 
-        50,)
+    #     main("Gemini1.5",
+    #     0,
+    #     0,
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     50,)
 
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        num_malignant*3, 
-        num_malignant,
-        50,)
+    #     main("Gemini1.5",
+    #     num_malignant*3, 
+    #     num_malignant, 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)

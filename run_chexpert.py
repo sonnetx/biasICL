@@ -49,7 +49,7 @@ def main(
     dataset_name = "chexpert_binary_PNA"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
 
-    if model.startswith("gpt"):
+    if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
     elif model.startswith("Gemini"):
         assert model == "Gemini1.5"
@@ -151,91 +151,40 @@ Do not deviate from the above format. Repeat the format template for the answer.
     results["token_usage"] = total_usage
     with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
-    
-    results_csv_path = os.path.join(os.getcwd(), f"{dataset_name}_{model}_{num_qns_per_round}_results.csv")
-    if not os.path.isfile(results_csv_path):
-        # Create a new CSV file with the specified columns
-        columns = [
-            'num_shots_per_class',  # Number of shots per class
-            'black_race_split',  # Proportion of black examples in the malignant class
-            'accuracy',  # Accuracy of the model
-            'acc_error',  # Error of the accuracy (std dev of the mean)
-            'f1',  # F1 score of the model
-            'f1_error',  # Error of the F1 score (std dev of the mean)
-            'black_accuracy',  # Accuracy of the model on black examples
-            'black_acc_error',  # Error of the accuracy on black examples (std dev of the mean)
-            'black_f1',  # F1 score of the model on black examples
-            'black_f1_error',  # Error of the F1 score on black examples (std dev of the mean)
-            'white_accuracy',  # Accuracy of the model on white examples
-            'white_acc_error',  # Error of the accuracy on white examples (std dev of the mean)
-            'white_f1',  # F1 score of the model on white examples
-            'white_f1_error',  # Error of the F1 score on white examples (std dev of the mean)
-        ]
-        df = pd.DataFrame(columns=columns)
-        df.to_csv(results_csv_path, index=False)
 
         
 if __name__ == "__main__":
 
-    # main("claude", 
-    #     0, 
-    #     0,
-    #     0, 
-    #     0,
-    #     50,)
-    
-    # for num_malignant in [1,3,5,7,10]:
-    #     main("claude", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-
-    #     main("claude",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    #     main("claude", 
-    #     0, 
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-    
-    main("gpt-4o-2024-05-13",
+    main("claude", 
         0, 
-        0, 
+        0,
         0, 
         0,
         50,)
+    
+    for num_malignant in [1,3,5,7,10]:
+        main("claude", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
 
-    for num_malignant in [1,5,10,20,30]:
-        main("gpt-4o-2024-05-13",
+        main("claude",
         num_malignant*3, 
         num_malignant, 
         0, 
         0,
         50,)
 
-        main("gpt-4o-2024-05-13", 
+        main("claude", 
         0, 
         0,
         num_malignant*3, 
         num_malignant,
         50,)
-
-        main("gpt-4o-2024-05-13", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-
-    # main("Gemini1.5",
+    
+    # main("gpt-4o-2024-05-13",
     #     0, 
     #     0, 
     #     0, 
@@ -243,23 +192,52 @@ if __name__ == "__main__":
     #     50,)
 
     # for num_malignant in [1,5,10,20,30]:
-    #     main("Gemini1.5",
+    #     main("gpt-4o-2024-05-13",
     #     num_malignant*3, 
     #     num_malignant, 
     #     0, 
     #     0,
     #     50,)
 
-    #     main("Gemini1.5",
+    #     main("gpt-4o-2024-05-13", 
+    #     0, 
     #     0,
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     50,)
-
-    #     main("Gemini1.5",
-    #     num_malignant*3, 
-    #     num_malignant, 
     #     num_malignant*3, 
     #     num_malignant,
     #     50,)
+
+    #     main("gpt-4o-2024-05-13", 
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     num_malignant*3, 
+    #     num_malignant,
+    #     50,)
+
+    main("Gemini1.5",
+        0, 
+        0, 
+        0, 
+        0,
+        50,)
+
+    for num_malignant in [1,5,10,20,30]:
+        main("Gemini1.5",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+
+        main("Gemini1.5",
+        0,
+        0,
+        num_malignant*3, 
+        num_malignant, 
+        50,)
+
+        main("Gemini1.5",
+        num_malignant*3, 
+        num_malignant, 
+        num_malignant*3, 
+        num_malignant,
+        50,)
