@@ -7,8 +7,21 @@ import numpy as np
 from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
+rare_diseases = {
+        'subcutaneous-t-cell-lymphoma', 'focal-acral-hyperkeratosis', 
+        'eccrine-poroma', 'inverted-follicular-keratosis', 'kaposi-sarcoma',
+        'metastatic-carcinoma', 'mycosis-fungoides', 
+        'acquired-digital-fibrokeratoma', 'atypical-spindle-cell-nevus-of-reed',
+        'verruciform-xanthoma', 'morphea', 'nevus-lipomatosus-superficialis',
+        'pigmented-spindle-cell-nevus-of-reed', 'arteriovenous-hemangioma',
+        'syringocystadenoma-papilliferum', 'trichofolliculoma',
+        'coccidioidomycosis', 'leukemia-cutis', 'sebaceous-carcinoma',
+        'blastic-plasmacytoid-dendritic-cell-neoplasm', 'glomangioma',
+        'dermatomyositis', 'cellular-neurothekeoma', 'graft-vs-host-disease',
+        'xanthograngioma', 'chondroid-syringoma', 'angioleiomyoma'
+    }
 
-def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
+def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, filter_rare = False):
     ###
     ### Load demo example frame
     ### Choose relevant demo examples
@@ -16,20 +29,59 @@ def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal):
     ###
     dataset_name = "DDI"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo_metadata.csv", index_col=0)
+    if filter_rare:
+        demo_frame = demo_frame[~demo_frame.disease.isin(rare_diseases)]
+    
     total_samples = fst12_ben + fst12_mal + fst56_ben + fst56_mal
     
     fst56_frame = demo_frame[demo_frame.skin_tone == 56]
-    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True].sample(fst56_mal, random_state=141)
-    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False].sample(fst56_ben, random_state=141)
-    
     fst12_frame = demo_frame[demo_frame.skin_tone == 12]
-    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True].sample(fst12_mal, random_state=141)
-    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False].sample(fst12_ben, random_state=141)
+
+    print("fst56_frame malignant", len(fst56_frame[fst56_frame.malignant == True]))
+    print("fst56_frame benign", len(fst56_frame[fst56_frame.malignant == False]))
+    print("fst12_frame malignant", len(fst12_frame[fst12_frame.malignant == True]))
+    print("fst12_frame benign", len(fst12_frame[fst12_frame.malignant == False]))
+
+    fst56_mal_frame = fst56_frame[fst56_frame.malignant == True]
+    fst56_ben_frame = fst56_frame[fst56_frame.malignant == False]
+    
+    fst12_mal_frame = fst12_frame[fst12_frame.malignant == True]
+    fst12_ben_frame = fst12_frame[fst12_frame.malignant == False]
+    
+    if len(fst56_mal_frame) < fst56_mal:
+        print(f"Warning: not enough malignant samples for skin tone 56, taking the max available {len(fst56_mal_frame)}")
+        fst56_mal_frame = fst56_mal_frame.sample(len(fst56_mal_frame), random_state=141)
+    else:
+        fst56_mal_frame = fst56_mal_frame.sample(fst56_mal, random_state=141)
+    
+    if len(fst56_ben_frame) < fst56_ben:
+        print(f"Warning: not enough benign samples for skin tone 56, taking the max available {len(fst56_ben_frame)}")
+        fst56_ben_frame = fst56_ben_frame.sample(len(fst56_ben_frame), random_state=141)
+    else:
+        fst56_ben_frame = fst56_ben_frame.sample(fst56_ben, random_state=141)
+    
+    if len(fst12_mal_frame) < fst12_mal:
+        print(f"Warning: not enough malignant samples for skin tone 12, taking the max available {len(fst12_mal_frame)}")
+        fst12_mal_frame = fst12_mal_frame.sample(len(fst12_mal_frame), random_state=141)
+    else:
+        fst12_mal_frame = fst12_mal_frame.sample(fst12_mal, random_state=141)
+    
+    if len(fst12_ben_frame) < fst12_ben:
+        print(f"Warning: not enough benign samples for skin tone 12, taking the max available {len(fst12_ben_frame)}")
+        fst12_ben_frame = fst12_ben_frame.sample(len(fst12_ben_frame), random_state=141)
+    else:
+        fst12_ben_frame = fst12_ben_frame.sample(fst12_ben, random_state=141)
     
     final_demo_frame = pd.concat([fst56_mal_frame,
-                                  fst56_ben_frame,
-                                  fst12_mal_frame,
-                                  fst12_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+                                      fst56_ben_frame,
+                                      fst12_mal_frame,
+                                      fst12_ben_frame])
+    
+    if len(final_demo_frame) < total_samples:
+        print(f"Warning: not enough total samples, taking the max available {len(final_demo_frame)}")
+        final_demo_frame = final_demo_frame.sample(len(final_demo_frame), random_state=141)
+    else:
+        final_demo_frame = final_demo_frame.sample(total_samples, random_state=141) # sample full num to shuffle
     return final_demo_frame
 
 def main(
@@ -39,6 +91,7 @@ def main(
     fst56_ben, 
     fst56_mal,
     num_qns_per_round,
+    filter_rare = False,
     detail="auto",
 ):
     """
@@ -61,6 +114,8 @@ def main(
 
     dataset_name = "DDI"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
+    if filter_rare: 
+        test_df = test_df[~test_df.disease.isin(rare_diseases)]
 
     if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
@@ -168,32 +223,72 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    # for num_malignant in [1]:
-    #     main("claude", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
 
-    # for num_malignant in [3, 10]:
-    #     main("claude",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    # for num_malignant in [1,3,5,7,10]:
-    #     main("claude", 
-    #     0, 
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+    # # test the base rate
+    # main("gpt-4o-2024-05-13", 
+    #     40, 0, 40, 0, 50,)
     
+    # main("gpt-4o-2024-05-13",
+    #      30, 10, 30, 10, 50,)
+    
+    # main("gpt-4o-2024-05-13",
+    #      20, 20, 20, 20, 50,)
+    
+    # main("gpt-4o-2024-05-13",
+    #      10, 30, 10, 30, 50,)
+    
+    # main("gpt-4o-2024-05-13",
+    #      0, 40, 0, 40, 50,)
+    
+    main("gpt-4o-2024-05-13",
+         34, 0, 0, 34, 50,)
+    
+    main("gpt-4o-2024-05-13",
+         30, 10, 10, 30, 50,)
+    
+    main("gpt-4o-2024-05-13",
+         10, 30, 30, 10, 50,)
+    
+    main("gpt-4o-2024-05-13",
+         0, 40, 40, 0, 50,)
 
-    for num_malignant in [0, 1,5,10,20,30]:
+    '''main("claude", 
+        0,  
+        0, 
+        0, 
+        0,
+        50,)
+
+    for num_malignant in [1,3,5,7,10]:
+        main("claude", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+
+        main("claude",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+
+        main("claude", 
+        0, 
+        0,
+        num_malignant*3, 
+        num_malignant,
+        50,)
+    
+    main("o1-2024-12-17",
+        0,  
+        0, 
+        0, 
+        0,
+        50,)
+
+    for num_malignant in [1,3,5,7,10]:
         main("o1-2024-12-17",
         num_malignant*3, 
         num_malignant, 
@@ -215,46 +310,60 @@ if __name__ == "__main__":
         num_malignant,
         50,)
 
-    # for num_malignant in [0, 1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
+    main("gpt-4o-2024-05-13",
+        0,  
+        0, 
+        0, 
+        0,
+        50,)
 
-    #     main("gpt-4o-2024-05-13", 
-    #     0, 
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+    for num_malignant in [1,3,5,7,10]:
+        main("gpt-4o-2024-05-13",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
+
+        main("gpt-4o-2024-05-13", 
+        0, 
+        0,
+        num_malignant*3, 
+        num_malignant,
+        50,)
     
-    #     main("gpt-4o-2024-05-13", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+        main("gpt-4o-2024-05-13", 
+        num_malignant*3, 
+        num_malignant,
+        num_malignant*3, 
+        num_malignant,
+        50,)
 
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("Gemini1.5",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
+    main("Gemini1.5",
+    0, 
+    0,
+    0, 
+    0,
+    50,)
 
-    #     main("Gemini1.5",
-    #     0,
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     50,)
+    for num_malignant in [1,3,5,7,10]:
+        main("Gemini1.5",
+        num_malignant*3, 
+        num_malignant, 
+        0, 
+        0,
+        50,)
 
-    #     main("Gemini1.5",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+        main("Gemini1.5",
+        0,
+        0,
+        num_malignant*3, 
+        num_malignant, 
+        50,)
+
+        main("Gemini1.5",
+        num_malignant*3, 
+        num_malignant, 
+        num_malignant*3, 
+        num_malignant,
+        50,)'''

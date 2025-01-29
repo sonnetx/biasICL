@@ -10,6 +10,7 @@ import random
 from PIL import Image
 from dotenv import load_dotenv
 from io import BytesIO
+import tenacity
 import base64
 
 # Load environment variables
@@ -154,6 +155,81 @@ class ClaudeAPI:
             return response.content[0].text
         else:
             return response
+
+class OpenAIModel(ABC):
+    def __init__(self, model_kwargs: dict, is_async=False, **kwargs):
+        super().__init__(**kwargs)
+        self.model_kwargs = model_kwargs.copy()
+        self.model_kwargs.setdefault("model", "gpt-4o")
+        self.detail = "low"
+        if is_async:
+            self.client = openai.AsyncOpenAI(api_key=openaikey)
+        else:
+            self.client = openai.OpenAI(api_key=openaikey)
+        
+    def generate_text_url(self, text):
+        return {"type": "text", "text": text}
+
+    def generate_image_url(self, image_path, detail="low"):
+        def downscale_image(image_path, max_size=(512, 512)):
+            with Image.open(image_path) as img:
+                img.thumbnail(max_size)
+                img.save("temp_downscaled.jpeg", "JPEG")
+            return "temp_downscaled.jpeg"
+        def encode_image(image_path):
+            if str(image_path).lower().endswith("tif"):
+                with Image.open(image_path) as img:
+                    img.convert("RGB").save("temp.jpeg", "JPEG")
+                image_path = "temp.jpeg"
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode("utf-8")
+        downscaled_image_path = downscale_image(image_path)
+        encoded_image = encode_image(downscaled_image_path)
+        return {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64, {encoded_image}",
+                "detail": detail,
+            },
+        }
+        
+    def generate_image_url(self, image_path, detail="low"):
+        
+
+        return {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64, {encode_image(image_path)}",
+                "detail": detail,
+            },
+        }
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential_jitter(),
+        retry=tenacity.retry_if_exception(
+            lambda exc: not isinstance(exc, UnanswerableError)
+        ),
+    )
+    def get_completion(self, text_prompt: str, test_cxr: str, demo_cxr: list[str] | None) -> str:
+        if demo_cxr:
+            raise NotImplementedError("ICL not implemented yet")
+        else:
+            messages = []
+            messages.append(self.generate_image_url(test_cxr, detail=self.detail))
+            messages.append(self.generate_text_url(text_prompt.split("<<IMG>>")[1]))
+        try:
+            response = self.client.chat.completions.create(
+                messages=[{"role": "user", "content": messages}],
+                **self.model_kwargs,
+            )
+        except openai.BadRequestError as e:
+            if "PromptTooLongError" in e.message:
+                raise UnanswerableError(e.message) from e
+            raise
+
+        return response.choices[0].message.content
+
 
 class GPT4VAPI:
     def __init__(
