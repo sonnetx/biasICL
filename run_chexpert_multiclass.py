@@ -24,11 +24,6 @@ def parse_answers(text):
     return vector
 
 def create_demo(female_count, male_count):
-    ###
-    ### Load demo example frame
-    ### Choose relevant demo examples
-    ### Then create demo prompt and list of demo image paths
-    ###
     dataset_name = "chexpert_binary_PNA"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
     total_samples = female_count + male_count
@@ -36,7 +31,7 @@ def create_demo(female_count, male_count):
     female_frame = demo_frame[demo_frame.Sex == "Female"]
     
     male_frame = demo_frame[demo_frame.Sex == "Male"]
-    
+
     final_demo_frame = pd.concat([female_frame.sample(female_count, random_state=141),
                                   male_frame.sample(male_count, random_state=141)]).sample(total_samples, random_state=141) # sample full num to shuffle
     return final_demo_frame
@@ -51,7 +46,45 @@ def main(
 
     EXP_NAME = f"chexpert_{female_count}_{male_count}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(female_count, male_count)
+    # demo_frame = create_demo(female_count, male_count)
+
+    dataset_name = "chexpert_binary_PNA"
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
+    
+    labels = demo_frame.columns[5:19]
+    total_samples = female_count + male_count
+    demo_frames = []
+    num_shots = total_samples // len(labels)
+    
+    # Keep track of sampled indices
+    sampled_indices = set()
+
+    for k in range(num_shots):
+        for L in labels:
+            # Count how many samples we already have for this label
+            existing_samples = sum(1 for idx in sampled_indices 
+                                if demo_frame.loc[idx, L] == 1)
+            
+            # Calculate how many more samples we need
+            samples_needed = k - existing_samples
+            
+            if samples_needed > 0:
+                # Get eligible indices (excluding already sampled ones)
+                eligible = demo_frame[
+                    (demo_frame[L] == 1) & 
+                    (~demo_frame.index.isin(sampled_indices))
+                ]
+                
+                # Sample the remaining needed samples
+                new_samples = eligible.sample(min(samples_needed, len(eligible)))
+                sampled_indices.update(new_samples.index)
+                demo_frames.append(new_samples)
+            
+    demo_frame = pd.concat(demo_frames).sample(total_samples, random_state=141) # sample full num to shuffle
+    
+    print("Composition of demo frame:")
+    for L in labels:
+        print(f"{L}: {sum(demo_frame[L] == 1)}")
 
     dataset_name = "chexpert_binary_PNA"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
@@ -88,7 +121,7 @@ def main(
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
         row = test_df.iloc[start_idx]
 
-        race = 'White' if row.race in ['White', 'White, non-Hispanic', 'White or Caucasian'] else 'Not White'
+        # race = 'White' if row.race in ['White', 'White, non-Hispanic', 'White or Caucasian'] else 'Not White'
         age = row.Age
         sex = row.Sex
         ground_truth_vec = (row.iloc[5:19] == 1).values.astype(float)
@@ -207,10 +240,26 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
     
-    main("gpt-4o-2024-05-13",
-        0,
-        0, 
-        50,)
+    total = 100
+
+    for count in range(0, total, 10):
+        # only men
+        main("gpt-4o-2024-05-13",
+            0,
+            count, 
+            50,)
+        
+        # only women
+        main("gpt-4o-2024-05-13",
+            count, 
+            0, 
+            50,)
+        
+        # both
+        main("gpt-4o-2024-05-13",
+            count, 
+            count, 
+            50,)
 
     # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13",

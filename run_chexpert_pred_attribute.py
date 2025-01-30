@@ -8,62 +8,48 @@ from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
 
-def create_demo(female_ben, female_mal, male_ben, male_mal):
-    ###
-    ### Load demo example frame
-    ### Choose relevant demo examples
-    ### Then create demo prompt and list of demo image paths
-    ###
+def create_demo(female, male):
     dataset_name = "chexpert_binary_PNA"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
-    total_samples = female_ben + female_mal + male_ben + male_mal
+    total_samples = female + male
     
     female_frame = demo_frame[demo_frame.Sex == "Female"]
-    if len(female_frame[female_frame.Pneumothorax == True]) < female_mal:
-        print(f"Warning: not enough female malignant samples, taking the max available {len(female_frame[female_frame.Pneumothorax == True])}")
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(len(female_frame[female_frame.Pneumothorax == True]), random_state=141)
-    else:
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(female_mal, random_state=141)
-    
-    if len(female_frame[female_frame.Pneumothorax == False]) < female_ben:
-        print(f"Warning: not enough female benign samples, taking the max available {len(female_frame[female_frame.Pneumothorax == False])}")
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(len(female_frame[female_frame.Pneumothorax == False]), random_state=141)
-    else:
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(female_ben, random_state=141)
-    
     male_frame = demo_frame[demo_frame.Sex == "Male"]
-    if len(male_frame[male_frame.Pneumothorax == True]) < male_mal:
-        print(f"Warning: not enough male malignant samples, taking the max available {len(male_frame[male_frame.Pneumothorax == True])}")
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(len(male_frame[male_frame.Pneumothorax == True]), random_state=141)
-    else:
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(male_mal, random_state=141)
+    print("females in demo", len(female_frame), "males in demo", len(male_frame))
     
-    if len(male_frame[male_frame.Pneumothorax == False]) < male_ben:
-        print(f"Warning: not enough male benign samples, taking the max available {len(male_frame[male_frame.Pneumothorax == False])}")
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(len(male_frame[male_frame.Pneumothorax == False]), random_state=141)
+    if len(female_frame) < female:
+        print(f"Warning: not enough female samples for attribute, taking the max available {len(female_frame)}")
+        female_frame = female_frame.sample(len(female_frame), random_state=141)
     else:
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(male_ben, random_state=141)
+        female_frame = female_frame.sample(female, random_state=141)
+        
+    if len(male_frame) < male:
+        print(f"Warning: not enough male samples for attribute, taking the max available {len(male_frame)}")
+        male_frame = male_frame.sample(len(male_frame), random_state=141)
+    else:
+        male_frame = male_frame.sample(male, random_state=141)
     
-    total_samples = len(female_mal_frame) + len(female_ben_frame) + len(male_mal_frame) + len(male_ben_frame)
-    final_demo_frame = pd.concat([female_mal_frame,
-                                  female_ben_frame,
-                                  male_mal_frame,
-                                  male_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+    try:
+        final_demo_frame = pd.concat([female_frame,
+                                      male_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+    except Exception as e:
+        print(f"Error: {e}")
+        traceback.print_exc()
+        final_demo_frame = pd.concat([female_frame, male_frame])
+
     return final_demo_frame
 
 def main(
     model,
-    female_ben, 
-    female_mal, 
-    male_ben, 
-    male_mal,
+    female, 
+    male,
     num_qns_per_round,
     detail="auto",
 ):
 
-    EXP_NAME = f"chexpert_{female_ben}_{female_mal}_{male_ben}_{male_mal}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"chexpert_attribute_{female}_{male}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal)
+    demo_frame = create_demo(female, male)
 
     dataset_name = "chexpert_binary_PNA"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
@@ -82,7 +68,7 @@ def main(
     demo_paths = []
     demo_labels = []
     for i,row in demo_frame.iterrows():
-        ans_choice = "B" if row.Pneumothorax == True else "A"
+        ans_choice = "B" if row.Sex == "Male" else "A"
         demo_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
         demo_labels.append(ans_choice)
     demo_examples = list(zip(demo_paths, demo_labels))
@@ -105,8 +91,8 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which diagnosis best fits the chest x-ray in the image above?
-                Choices: A. Pneumothorax, B. No Finding
+                Question: Which gender best fits the chest x-ray in the image above?
+                Choices: A. Female, B. Male
                 Answer Choice: {demo[1]}
                 """
         qns_idx = []
@@ -116,8 +102,8 @@ def main(
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which diagnosis best fits the chest x-ray in the image above?
-                Choices {qn_idx}: A. Pneumothorax, B. No Finding
+                Question {qn_idx}: Which gender best fits the chest x-ray in the image above?
+                Choices {qn_idx}: A. Female, B. Male
 
                 """
         for i in range(start_idx, end_idx):
@@ -203,69 +189,12 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
     
-    main("gpt-4o-2024-05-13",
-        0, 
-        0, 
-        0, 
-        0,
-        50,)
-    
-    main("Gemini1.5",
-        0, 
-        0, 
-        0, 
-        0,
-        50,)
-
-    # base rate experiments
-    total = 300
-    for i in range(0, total, 10):
+    for i in range(0, 200, 10):
         main("gpt-4o-2024-05-13",
-             i, total - i, total - i, i, 50,)
+            i, 
+            i, 
+            50,)
         
         main("Gemini1.5",
-             i, total - i, total - i, i, 50,)
-    
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    #     main("gpt-4o-2024-05-13", 
-    #     0, 
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-
-    #     main("gpt-4o-2024-05-13", 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
-
-
-    #     main("Gemini1.5",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
-
-    #     main("Gemini1.5",
-    #     0,
-    #     0,
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     50,)
-
-    #     main("Gemini1.5",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     num_malignant*3, 
-    #     num_malignant,
-    #     50,)
+            i, i,
+            50,)

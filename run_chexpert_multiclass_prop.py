@@ -6,9 +6,24 @@ import pickle
 import numpy as np
 from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
+import re
 
+def parse_answers(text):
+    pattern = r"<ANS>\s*([A-N, ]+)\s*</ANS>"
+    match = re.search(pattern, text)
+    letter_to_index = {chr(i): i - ord('A') for i in range(ord('A'), ord('N') + 1)}
+    vector = [0] * 14
+    
+    if match:
+        letters = match.group(1).split(',')
+        for letter in letters:
+            letter = letter.strip()
+            if letter in letter_to_index:
+                vector[letter_to_index[letter]] = 1
+    
+    return vector
 
-def create_demo(female_ben, female_mal, male_ben, male_mal):
+def create_demo(female_proportion, male_proportion):
     ###
     ### Load demo example frame
     ### Choose relevant demo examples
@@ -16,54 +31,29 @@ def create_demo(female_ben, female_mal, male_ben, male_mal):
     ###
     dataset_name = "chexpert_binary_PNA"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
-    total_samples = female_ben + female_mal + male_ben + male_mal
     
     female_frame = demo_frame[demo_frame.Sex == "Female"]
-    if len(female_frame[female_frame.Pneumothorax == True]) < female_mal:
-        print(f"Warning: not enough female malignant samples, taking the max available {len(female_frame[female_frame.Pneumothorax == True])}")
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(len(female_frame[female_frame.Pneumothorax == True]), random_state=141)
-    else:
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(female_mal, random_state=141)
-    
-    if len(female_frame[female_frame.Pneumothorax == False]) < female_ben:
-        print(f"Warning: not enough female benign samples, taking the max available {len(female_frame[female_frame.Pneumothorax == False])}")
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(len(female_frame[female_frame.Pneumothorax == False]), random_state=141)
-    else:
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(female_ben, random_state=141)
-    
     male_frame = demo_frame[demo_frame.Sex == "Male"]
-    if len(male_frame[male_frame.Pneumothorax == True]) < male_mal:
-        print(f"Warning: not enough male malignant samples, taking the max available {len(male_frame[male_frame.Pneumothorax == True])}")
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(len(male_frame[male_frame.Pneumothorax == True]), random_state=141)
-    else:
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(male_mal, random_state=141)
     
-    if len(male_frame[male_frame.Pneumothorax == False]) < male_ben:
-        print(f"Warning: not enough male benign samples, taking the max available {len(male_frame[male_frame.Pneumothorax == False])}")
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(len(male_frame[male_frame.Pneumothorax == False]), random_state=141)
-    else:
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(male_ben, random_state=141)
+    total_samples = int((female_proportion + male_proportion) * len(demo_frame))
+    female_count = int(female_proportion * total_samples)
+    male_count = total_samples - female_count
     
-    total_samples = len(female_mal_frame) + len(female_ben_frame) + len(male_mal_frame) + len(male_ben_frame)
-    final_demo_frame = pd.concat([female_mal_frame,
-                                  female_ben_frame,
-                                  male_mal_frame,
-                                  male_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+    final_demo_frame = pd.concat([female_frame.sample(female_count, random_state=141),
+                                  male_frame.sample(male_count, random_state=141)]).sample(total_samples, random_state=141) # sample full num to shuffle
     return final_demo_frame
 
 def main(
     model,
-    female_ben, 
-    female_mal, 
-    male_ben, 
-    male_mal,
+    female_proportion,
+    male_proportion,
     num_qns_per_round,
     detail="auto",
 ):
 
-    EXP_NAME = f"chexpert_{female_ben}_{female_mal}_{male_ben}_{male_mal}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"chexpert_{female_proportion}_{male_proportion}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal)
+    demo_frame = create_demo(female_proportion, male_proportion)
 
     dataset_name = "chexpert_binary_PNA"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
@@ -82,9 +72,9 @@ def main(
     demo_paths = []
     demo_labels = []
     for i,row in demo_frame.iterrows():
-        ans_choice = "B" if row.Pneumothorax == True else "A"
         demo_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
-        demo_labels.append(ans_choice)
+        formatted_columns = ", ".join([f"{chr(65+i)}. {col}" for i, col in enumerate(row.index[5:19])])
+        demo_labels.append(formatted_columns)
     demo_examples = list(zip(demo_paths, demo_labels))
     
     # Load existing results
@@ -93,22 +83,29 @@ def main(
             results = pickle.load(f)
     else:
         results = {}
+    new_results = []
 
     test_df = test_df.sample(frac=1, random_state=141)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
+        row = test_df.iloc[start_idx]
 
-#         random.shuffle(demo_examples)  already shuffled so don't need to do this 
-        prompt = "Please respond with the following format for each question, in the form of a single capital letter specifying which label best describes the image. Do not deviate from the format, because it will be automatically parsed."
+        race = 'White' if row.race in ['White', 'White, non-Hispanic', 'White or Caucasian'] else 'Not White'
+        age = row.Age
+        sex = row.Sex
+        ground_truth_vec = (row.iloc[5:19] == 1).values.astype(float)
+
+        formatted_columns = ", ".join([f"{chr(65+i)}. {col}" for i, col in enumerate(row.index[5:19])])
+        prompt = "Please respond with the following format for each question. Do not deviate from the format, because it will be automatically parsed."
         image_paths = [
             i[0] for i in demo_examples
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which diagnosis best fits the chest x-ray in the image above?
-                Choices: A. Pneumothorax, B. No Finding
-                Answer Choice: {demo[1]}
-                """
+            Question: Which of the following radiographic findings are present in the image above? More than one finding may be present per image.
+            Choices: {formatted_columns}
+            Answer Choice: {demo[1]}
+            """
         qns_idx = []
         for idx, row in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
             qns_idx.append(row.Index)
@@ -116,20 +113,19 @@ def main(
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which diagnosis best fits the chest x-ray in the image above?
-                Choices {qn_idx}: A. Pneumothorax, B. No Finding
+            Question: Which of the following radiographic findings are present in the image above? More than one finding may be present per image.
+            Choices: {formatted_columns}
 
-                """
+            """
         for i in range(start_idx, end_idx):
             qn_idx = i - start_idx + 1
             prompt += f"""
-                Please respond with the following format for each question:
-                ---BEGIN FORMAT TEMPLATE FOR QUESTION {qn_idx}---
-                Answer Choice {qn_idx}: [Your Answer Choice Here for Question {qn_idx}]
-                Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From 0 To 1 for Question {qn_idx}]
-                ---END FORMAT TEMPLATE FOR QUESTION {qn_idx}---
+                    Please respond with the following format for each question, in the form of a comma delimited list of capital letters specifying which radiographic findings are present in the image surrounded by beginning <ANS> and end </ANS> brackets:
+                        ---BEGIN FORMAT TEMPLATE FOR QUESTION---
+                        <ANS> Your comma-delimited list of capital letters representing radiographic findings here </ANS>
+                        ---END FORMAT TEMPLATE FOR QUESTION---
 
-                Do not deviate from the above format. Repeat the format template for the answer."""
+                        Do not deviate from the above format. Repeat the format template for the answer."""
         qns_id = str(qns_idx)
         for retry in range(3):
             if (
@@ -162,6 +158,14 @@ def main(
                 exit()
 
             print(res)
+            ans = parse_answers(res)
+            new_results.append({
+                "response": res,
+                "parsed_answer": ans,
+                "age": age,
+                "sex": sex,
+                "ground_truth": ground_truth_vec,
+            })
             results[qns_id] = (res,prompt,image_paths)
 
     # Update token usage and save the results
@@ -170,6 +174,8 @@ def main(
     results["token_usage"] = total_usage
     with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
+    result_df = pd.DataFrame(new_results)
+    result_df.to_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.csv")
 
         
 if __name__ == "__main__":
@@ -204,28 +210,10 @@ if __name__ == "__main__":
     #     50,)
     
     main("gpt-4o-2024-05-13",
-        0, 
-        0, 
-        0, 
         0,
-        50,)
-    
-    main("Gemini1.5",
         0, 
-        0, 
-        0, 
-        0,
         50,)
 
-    # base rate experiments
-    total = 300
-    for i in range(0, total, 10):
-        main("gpt-4o-2024-05-13",
-             i, total - i, total - i, i, 50,)
-        
-        main("Gemini1.5",
-             i, total - i, total - i, i, 50,)
-    
     # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13",
     #     num_malignant*3, 
@@ -248,7 +236,14 @@ if __name__ == "__main__":
     #     num_malignant,
     #     50,)
 
+    # main("Gemini1.5",
+    #     0, 
+    #     0, 
+    #     0, 
+    #     0,
+    #     50,)
 
+    # for num_malignant in [1,5,10,20,30]:
     #     main("Gemini1.5",
     #     num_malignant*3, 
     #     num_malignant, 
