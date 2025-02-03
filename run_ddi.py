@@ -21,7 +21,7 @@ rare_diseases = {
         'xanthograngioma', 'chondroid-syringoma', 'angioleiomyoma'
     }
 
-def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, filter_rare = False):
+def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, filter_rare = False, random_seed=141):
     ###
     ### Load demo example frame
     ### Choose relevant demo examples
@@ -50,27 +50,27 @@ def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, filter_rare = False)
     
     if len(fst56_mal_frame) < fst56_mal:
         print(f"Warning: not enough malignant samples for skin tone 56, taking the max available {len(fst56_mal_frame)}")
-        fst56_mal_frame = fst56_mal_frame.sample(len(fst56_mal_frame), random_state=141)
+        fst56_mal_frame = fst56_mal_frame.sample(len(fst56_mal_frame), random_state=random_seed)
     else:
-        fst56_mal_frame = fst56_mal_frame.sample(fst56_mal, random_state=141)
+        fst56_mal_frame = fst56_mal_frame.sample(fst56_mal, random_state=random_seed)
     
     if len(fst56_ben_frame) < fst56_ben:
         print(f"Warning: not enough benign samples for skin tone 56, taking the max available {len(fst56_ben_frame)}")
-        fst56_ben_frame = fst56_ben_frame.sample(len(fst56_ben_frame), random_state=141)
+        fst56_ben_frame = fst56_ben_frame.sample(len(fst56_ben_frame), random_state=random_seed)
     else:
-        fst56_ben_frame = fst56_ben_frame.sample(fst56_ben, random_state=141)
+        fst56_ben_frame = fst56_ben_frame.sample(fst56_ben, random_state=random_seed)
     
     if len(fst12_mal_frame) < fst12_mal:
         print(f"Warning: not enough malignant samples for skin tone 12, taking the max available {len(fst12_mal_frame)}")
-        fst12_mal_frame = fst12_mal_frame.sample(len(fst12_mal_frame), random_state=141)
+        fst12_mal_frame = fst12_mal_frame.sample(len(fst12_mal_frame), random_state=random_seed)
     else:
-        fst12_mal_frame = fst12_mal_frame.sample(fst12_mal, random_state=141)
+        fst12_mal_frame = fst12_mal_frame.sample(fst12_mal, random_state=random_seed)
     
     if len(fst12_ben_frame) < fst12_ben:
         print(f"Warning: not enough benign samples for skin tone 12, taking the max available {len(fst12_ben_frame)}")
-        fst12_ben_frame = fst12_ben_frame.sample(len(fst12_ben_frame), random_state=141)
+        fst12_ben_frame = fst12_ben_frame.sample(len(fst12_ben_frame), random_state=random_seed)
     else:
-        fst12_ben_frame = fst12_ben_frame.sample(fst12_ben, random_state=141)
+        fst12_ben_frame = fst12_ben_frame.sample(fst12_ben, random_state=random_seed)
     
     final_demo_frame = pd.concat([fst56_mal_frame,
                                       fst56_ben_frame,
@@ -79,9 +79,9 @@ def create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, filter_rare = False)
     
     if len(final_demo_frame) < total_samples:
         print(f"Warning: not enough total samples, taking the max available {len(final_demo_frame)}")
-        final_demo_frame = final_demo_frame.sample(len(final_demo_frame), random_state=141)
+        final_demo_frame = final_demo_frame.sample(len(final_demo_frame), random_state=random_seed)
     else:
-        final_demo_frame = final_demo_frame.sample(total_samples, random_state=141) # sample full num to shuffle
+        final_demo_frame = final_demo_frame.sample(total_samples, random_state=random_seed) # sample full num to shuffle
     return final_demo_frame
 
 def main(
@@ -93,6 +93,7 @@ def main(
     num_qns_per_round,
     filter_rare = False,
     detail="auto",
+    random_seed=42
 ):
     """
     Run queries for each test case in the test_df dataframe using demonstrating examples sampled from demo_df dataframe.
@@ -108,9 +109,9 @@ def main(
     """
 
 #     class_to_idx = {class_name: idx for idx, class_name in enumerate(classes)}
-    EXP_NAME = f"ddi_{fst12_ben}_{fst12_mal}_{fst56_ben}_{fst56_mal}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"ddi_{random_seed}_{fst12_ben}_{fst12_mal}_{fst56_ben}_{fst56_mal}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal)
+    demo_frame = create_demo(fst12_ben, fst12_mal, fst56_ben, fst56_mal, random_seed=random_seed)
 
     dataset_name = "DDI"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
@@ -144,7 +145,7 @@ def main(
     else:
         results = {}
 
-    test_df = test_df.sample(frac=1, random_state=141)  # Shuffle the test set
+    test_df = test_df.sample(frac=1, random_state=random_seed)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
@@ -218,39 +219,44 @@ Do not deviate from the above format. Repeat the format template for the answer.
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"./ddi_results/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"./ddi_results/ddi_base_rates/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
         
 if __name__ == "__main__":
 
-    # # test the base rate
-    # main("gpt-4o-2024-05-13", 
-    #     40, 0, 40, 0, 50,)
-    
-    # main("gpt-4o-2024-05-13",
-    #      30, 10, 30, 10, 50,)
-    
-    # main("gpt-4o-2024-05-13",
-    #      20, 20, 20, 20, 50,)
-    
-    # main("gpt-4o-2024-05-13",
-    #      10, 30, 10, 30, 50,)
-    
-    # main("gpt-4o-2024-05-13",
-    #      0, 40, 0, 40, 50,)
-    
-    main("gpt-4o-2024-05-13",
-         34, 0, 0, 34, 50,)
-    
-    main("gpt-4o-2024-05-13",
-         30, 10, 10, 30, 50,)
-    
-    main("gpt-4o-2024-05-13",
-         10, 30, 30, 10, 50,)
-    
-    main("gpt-4o-2024-05-13",
-         0, 40, 40, 0, 50,)
+    # test the base rate
+    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+        for seed in [10, 100, 141]:
+            # main(model,
+            #     40, 0, 40, 0, 50, random_seed=seed)
+            
+            # main(model,
+            #     30, 10, 30, 10, 50, random_seed=seed)
+            
+            # main(model,
+            #     20, 20, 20, 20, 50, random_seed=seed)
+            
+            # main(model,
+            #     10, 30, 10, 30, 50, random_seed=seed)
+            
+            # main(model,
+            #     0, 40, 0, 40, 50, random_seed=seed)
+            
+            # inverted base rate
+            
+            main(model,
+                0, 40, 40, 0, 50, random_seed=seed)
+            
+            main(model,
+                10, 30, 30, 10, 50, random_seed=seed)
+            
+            main(model,
+                30, 10, 10, 30, 50, random_seed=seed)
+            
+            main(model,
+                40, 0, 40, 50, random_seed=seed)
+            
 
     '''main("claude", 
         0,  

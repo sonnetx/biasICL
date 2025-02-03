@@ -91,10 +91,10 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which gender best fits the chest x-ray in the image above?
-                Choices: A. Female, B. Male
-                Answer Choice: {demo[1]}
-                """
+Question: What skin tone does the person in the image have?
+Choices: A. White, B. Black or Brown
+Answer Choice: {demo[1]}
+"""
         qns_idx = []
         for idx, row in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
             qns_idx.append(row.Index)
@@ -102,8 +102,8 @@ def main(
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which gender best fits the chest x-ray in the image above?
-                Choices {qn_idx}: A. Female, B. Male
+                Question {qn_idx}: What skin tone does the person in the image have?
+                Choices {qn_idx}: A. White, B. Black or Brown
 
                 """
         for i in range(start_idx, end_idx):
@@ -159,15 +159,14 @@ def main(
 
         
 if __name__ == "__main__":    
-    # for i in range(0, 200, 10):
-    #     main("gpt-4o-2024-05-13",
-    #         i, 
-    #         i, 
-    #         50,)
-        
-    #     main("Gemini1.5",
-    #         i, i,
-    #         50,)
+    main("gpt-4o-2024-05-13",
+        0, 
+        0, 
+        50,)
+    
+    main("Gemini1.5",
+        0, 0,
+        50,)
 
     main("claude",
         0, 0,

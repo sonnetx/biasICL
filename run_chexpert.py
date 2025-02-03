@@ -8,47 +8,47 @@ from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
 
-def create_demo(female_ben, female_mal, male_ben, male_mal):
+def create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=141):
     ###
     ### Load demo example frame
     ### Choose relevant demo examples
     ### Then create demo prompt and list of demo image paths
     ###
     dataset_name = "chexpert_binary_PNA"
-    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/demo.csv", index_col=0)
     total_samples = female_ben + female_mal + male_ben + male_mal
     
     female_frame = demo_frame[demo_frame.Sex == "Female"]
     if len(female_frame[female_frame.Pneumothorax == True]) < female_mal:
         print(f"Warning: not enough female malignant samples, taking the max available {len(female_frame[female_frame.Pneumothorax == True])}")
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(len(female_frame[female_frame.Pneumothorax == True]), random_state=141)
+        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(len(female_frame[female_frame.Pneumothorax == True]), random_state=random_seed)
     else:
-        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(female_mal, random_state=141)
+        female_mal_frame = female_frame[female_frame.Pneumothorax == True].sample(female_mal, random_state=random_seed)
     
     if len(female_frame[female_frame.Pneumothorax == False]) < female_ben:
         print(f"Warning: not enough female benign samples, taking the max available {len(female_frame[female_frame.Pneumothorax == False])}")
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(len(female_frame[female_frame.Pneumothorax == False]), random_state=141)
+        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(len(female_frame[female_frame.Pneumothorax == False]), random_state=random_seed)
     else:
-        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(female_ben, random_state=141)
+        female_ben_frame = female_frame[female_frame.Pneumothorax == False].sample(female_ben, random_state=random_seed)
     
     male_frame = demo_frame[demo_frame.Sex == "Male"]
     if len(male_frame[male_frame.Pneumothorax == True]) < male_mal:
         print(f"Warning: not enough male malignant samples, taking the max available {len(male_frame[male_frame.Pneumothorax == True])}")
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(len(male_frame[male_frame.Pneumothorax == True]), random_state=141)
+        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(len(male_frame[male_frame.Pneumothorax == True]), random_state=random_seed)
     else:
-        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(male_mal, random_state=141)
+        male_mal_frame = male_frame[male_frame.Pneumothorax == True].sample(male_mal, random_state=random_seed)
     
     if len(male_frame[male_frame.Pneumothorax == False]) < male_ben:
         print(f"Warning: not enough male benign samples, taking the max available {len(male_frame[male_frame.Pneumothorax == False])}")
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(len(male_frame[male_frame.Pneumothorax == False]), random_state=141)
+        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(len(male_frame[male_frame.Pneumothorax == False]), random_state=random_seed)
     else:
-        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(male_ben, random_state=141)
+        male_ben_frame = male_frame[male_frame.Pneumothorax == False].sample(male_ben, random_state=random_seed)
     
     total_samples = len(female_mal_frame) + len(female_ben_frame) + len(male_mal_frame) + len(male_ben_frame)
     final_demo_frame = pd.concat([female_mal_frame,
                                   female_ben_frame,
                                   male_mal_frame,
-                                  male_ben_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+                                  male_ben_frame]).sample(total_samples, random_state=random_seed) # sample full num to shuffle
     return final_demo_frame
 
 def main(
@@ -59,14 +59,15 @@ def main(
     male_mal,
     num_qns_per_round,
     detail="auto",
+    random_seed=141
 ):
 
     EXP_NAME = f"chexpert_{female_ben}_{female_mal}_{male_ben}_{male_mal}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal)
+    demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=random_seed)
 
     dataset_name = "chexpert_binary_PNA"
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/test.csv", index_col=0)
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/test.csv", index_col=0)
 
     if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
@@ -94,7 +95,7 @@ def main(
     else:
         results = {}
 
-    test_df = test_df.sample(frac=1, random_state=141)  # Shuffle the test set
+    test_df = test_df.sample(frac=1, random_state=random_seed)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
@@ -168,7 +169,7 @@ def main(
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/base_rate_exps/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
         
@@ -202,29 +203,25 @@ if __name__ == "__main__":
     #     num_malignant*3, 
     #     num_malignant,
     #     50,)
-    
-    main("gpt-4o-2024-05-13",
-        0, 
-        0, 
-        0, 
-        0,
-        50,)
-    
-    main("Gemini1.5",
-        0, 
-        0, 
-        0, 
-        0,
-        50,)
 
-    # base rate experiments
-    total = 300
-    for i in range(0, total, 10):
-        main("gpt-4o-2024-05-13",
-             i, total - i, total - i, i, 50,)
-        
-        main("Gemini1.5",
-             i, total - i, total - i, i, 50,)
+    # test the base rate
+    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+        for seed in [10, 100, 141]:
+            main(model,
+                0, 
+                0, 
+                0, 
+                0,
+                50, 
+                random_seed=seed)
+
+            # base rate experiments
+            total = 300
+            for i in range(0, total, 10):
+                main(model, i, total - i, total - i, i, 50, random_seed=seed)
+
+            for i in range(0, total, 10):
+                main(model, total - i, i, total - i, i, 50, random_seed=seed)
     
     # for num_malignant in [1,5,10,20,30]:
     #     main("gpt-4o-2024-05-13",

@@ -110,10 +110,10 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which Fitzpatrick Skin Type best fits the skin lesion in the image above?
-                Choices: A. 12, B. 56
-                Answer Choice: {demo[1]}
-                """
+Question: What skin tone does the person in the image have?
+Choices: A. White, B. Black or Brown
+Answer Choice: {demo[1]}
+"""
         qns_idx = []
         for idx, i in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
             qns_idx.append(i.Index)
@@ -121,8 +121,8 @@ def main(
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which Fitzpatrick Skin Type best fits the skin lesion in the image above?
-                Choices {qn_idx}: A. 12, B. 56
+                Question {qn_idx}: What skin tone does the person in the image have?
+                Choices {qn_idx}: A. White, B. Black or Brown
 
                 """
         for i in range(start_idx, end_idx):
@@ -179,12 +179,29 @@ def main(
         
 if __name__ == "__main__":
 
-    for i in range(0, 40, 8):
-        main("gpt-4o-2024-05-13",
-            i, 
-            i, 
-            50,)
+    # for i in range(0, 40, 8):
+    #     # main("gpt-4o-2024-05-13",
+    #     #     i, 
+    #     #     i, 
+    #     #     50,)
         
-        main("Gemini1.5",
-            i, i,
-            50,)
+    #     # main("Gemini1.5",
+    #     #     i, i,
+    #     #     50,)
+
+    #     main("claude",
+    #         i, i,
+    #         50,)
+
+    main("gpt-4o-2024-05-13",
+        0, 
+        0, 
+        50,)
+        
+    main("Gemini1.5",
+        0, 0,
+        50,)
+
+    main("claude",
+        0, 0,
+        50,)
