@@ -226,7 +226,7 @@ Do not deviate from the above format. Repeat the format template for the answer.
 if __name__ == "__main__":
 
     # test the base rate
-    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+    for model in ["gpt-4o-2024-05-13", "claude"]:
         for seed in [10, 100, 141]:
             # main(model,
             #     40, 0, 40, 0, 50, random_seed=seed)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
                 30, 10, 10, 30, 50, random_seed=seed)
             
             main(model,
-                40, 0, 40, 50, random_seed=seed)
+                40, 0, 0, 40, 50, random_seed=seed)
             
 
     '''main("claude", 

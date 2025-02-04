@@ -85,15 +85,20 @@ def main(
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
 #         random.shuffle(demo_examples)  already shuffled so don't need to do this 
-        prompt = "Please respond with the following format for each question, in the form of a single capital letter specifying which label best describes the image. Do not deviate from the format, because it will be automatically parsed."
+        prompt = "You are an expert radiologist working on a research project helping to \
+            determine how demographic characteristics like patient-reported race impact the \
+                fairness and safety of computer vision classifiers. Please respond with the \
+                following format for each question, in the form of a single capital letter \
+                specifying which label best describes the image. Do not deviate from the format, \
+                    because it will be automatically parsed."
         image_paths = [
             i[0] for i in demo_examples
         ]
         for demo in demo_examples:
-            prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which gender best fits the chest x-ray in the image above?
-                Choices: A. Female, B. Male
-                Answer Choice: {demo[1]}
+            prompt += f"""Given the image above, answer the following question using the specified format. 
+Question: What sex is the patient in the radiograph above?
+Choices: A. Female B. Male
+Answer Choice: {demo[1]}
                 """
         qns_idx = []
         for idx, row in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
@@ -102,20 +107,18 @@ def main(
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which gender best fits the chest x-ray in the image above?
-                Choices {qn_idx}: A. Female, B. Male
-
-                """
+Question {qn_idx}: What sex is the patient in the radiograph above?
+Choices {qn_idx}: A. Female B. Male
+"""
         for i in range(start_idx, end_idx):
             qn_idx = i - start_idx + 1
-            prompt += f"""
-                Please respond with the following format for each question:
-                ---BEGIN FORMAT TEMPLATE FOR QUESTION {qn_idx}---
-                Answer Choice {qn_idx}: [Your Answer Choice Here for Question {qn_idx}]
-                Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From 0 To 1 for Question {qn_idx}]
-                ---END FORMAT TEMPLATE FOR QUESTION {qn_idx}---
+            prompt += f"""Please respond with the following format for each question:
+---BEGIN FORMAT TEMPLATE FOR QUESTION {qn_idx}---
+Answer Choice {qn_idx}: [Your Answer Choice Here for Question {qn_idx}]
+Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From 0 To 1 for Question {qn_idx}]
+---END FORMAT TEMPLATE FOR QUESTION {qn_idx}---
 
-                Do not deviate from the above format. Repeat the format template for the answer."""
+Do not deviate from the above format. Repeat the format template for the answer."""
         qns_id = str(qns_idx)
         for retry in range(3):
             if (
@@ -159,15 +162,13 @@ def main(
 
         
 if __name__ == "__main__":    
-    # for i in range(0, 200, 10):
-    #     main("gpt-4o-2024-05-13",
-    #         i, 
-    #         i, 
-    #         50,)
-        
-    #     main("Gemini1.5",
-    #         i, i,
-    #         50,)
+    main("gpt-4o-2024-05-13",
+        0, 0,
+        50,)
+    
+    main("Gemini1.5",
+        0, 0,
+        50,)
 
     main("claude",
         0, 0,
