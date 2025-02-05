@@ -14,8 +14,7 @@ def create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=141):
     ### Choose relevant demo examples
     ### Then create demo prompt and list of demo image paths
     ###
-    dataset_name = "chexpert_binary_PNA"
-    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/demo.csv", index_col=0)
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTA_final_demo_df.csv", index_col=0)
     total_samples = female_ben + female_mal + male_ben + male_mal
     
     female_frame = demo_frame[demo_frame.Sex == "Female"]
@@ -62,12 +61,11 @@ def main(
     random_seed=141
 ):
 
-    EXP_NAME = f"chexpert_{female_ben}_{female_mal}_{male_ben}_{male_mal}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"chexpert_{random_seed}_{female_ben}_{female_mal}_{male_ben}_{male_mal}_{model}_{num_qns_per_round}"
     
     demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=random_seed)
 
-    dataset_name = "chexpert_binary_PNA"
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/test.csv", index_col=0)
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTA_final_test_df.csv", index_col=0)
 
     if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
@@ -84,7 +82,7 @@ def main(
     demo_labels = []
     for i,row in demo_frame.iterrows():
         ans_choice = "B" if row.Pneumothorax == True else "A"
-        demo_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
+        demo_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/biasICL/ManyICL/ManyICL/' + row.Path)
         demo_labels.append(ans_choice)
     demo_examples = list(zip(demo_paths, demo_labels))
     
@@ -106,31 +104,29 @@ def main(
         ]
         for demo in demo_examples:
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question: Which diagnosis best fits the chest x-ray in the image above?
-                Choices: A. Pneumothorax, B. No Finding
-                Answer Choice: {demo[1]}
-                """
+Question: Does the chest x-ray in the image above demonstrate a Pneumothorax?
+Choices: A. Yes, B. No
+Answer Choice: {demo[1]}
+"""
         qns_idx = []
         for idx, row in enumerate(test_df.iloc[start_idx:end_idx].itertuples()):
             qns_idx.append(row.Index)
-            image_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert_binary_PNA/' + row.Path)
+            image_paths.append('/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/biasICL/ManyICL/ManyICL/' + row.Path)
             qn_idx = idx + 1
 
             prompt += f"""<<IMG>>Given the image above, answer the following question using the specified format. 
-                Question {qn_idx}: Which diagnosis best fits the chest x-ray in the image above?
-                Choices {qn_idx}: A. Pneumothorax, B. No Finding
-
-                """
+Question {qn_idx}: Does the chest x-ray in the image above demonstrate a Pneumothorax?
+Choices {qn_idx}: A. Yes, B. No
+"""
         for i in range(start_idx, end_idx):
             qn_idx = i - start_idx + 1
-            prompt += f"""
-                Please respond with the following format for each question:
-                ---BEGIN FORMAT TEMPLATE FOR QUESTION {qn_idx}---
-                Answer Choice {qn_idx}: [Your Answer Choice Here for Question {qn_idx}]
-                Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From 0 To 1 for Question {qn_idx}]
-                ---END FORMAT TEMPLATE FOR QUESTION {qn_idx}---
+            prompt += f"""Please respond with the following format for each question:
+---BEGIN FORMAT TEMPLATE FOR QUESTION {qn_idx}---
+Answer Choice {qn_idx}: [Your Answer Choice Here for Question {qn_idx}]
+Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From 0 To 1 for Question {qn_idx}]
+---END FORMAT TEMPLATE FOR QUESTION {qn_idx}---
 
-                Do not deviate from the above format. Repeat the format template for the answer."""
+Do not deviate from the above format. Repeat the format template for the answer."""
         qns_id = str(qns_idx)
         for retry in range(3):
             if (
@@ -169,7 +165,7 @@ def main(
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/base_rate_exps/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/chexpert_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
         
@@ -215,21 +211,43 @@ if __name__ == "__main__":
                 50, 
                 random_seed=seed)
 
-            # base rate experiments
-            total = 300
-            for i in range(0, total, 10):
-                main(model, i, total - i, total - i, i, 50, random_seed=seed)
-
-            for i in range(0, total, 10):
-                main(model, total - i, i, total - i, i, 50, random_seed=seed)
+            main(model,
+                40, 0, 40, 0, 50, random_seed=seed)
+            
+            main(model,
+                30, 10, 30, 10, 50, random_seed=seed)
+            
+            main(model,
+                20, 20, 20, 20, 50, random_seed=seed)
+            
+            main(model,
+                10, 30, 10, 30, 50, random_seed=seed)
+            
+            main(model,
+                0, 40, 0, 40, 50, random_seed=seed)
+            
+            # inverted base rate
+            
+            main(model,
+                0, 40, 40, 0, 50, random_seed=seed)
+            
+            main(model,
+                10, 30, 30, 10, 50, random_seed=seed)
+            
+            main(model,
+                30, 10, 10, 30, 50, random_seed=seed)
+            
+            main(model,
+                40, 0, 0, 40, 50, random_seed=seed)
     
-    # for num_malignant in [1,5,10,20,30]:
-    #     main("gpt-4o-2024-05-13",
-    #     num_malignant*3, 
-    #     num_malignant, 
-    #     0, 
-    #     0,
-    #     50,)
+            for num_malignant in [1, 3, 5, 6, 7, 10]:
+                main(model,
+                num_malignant, 
+                num_malignant, 
+                0, 
+                0,
+                50,
+                random_seed=seed)
 
     #     main("gpt-4o-2024-05-13", 
     #     0, 

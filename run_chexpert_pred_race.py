@@ -47,7 +47,7 @@ def main(
     detail="auto",
 ):
 
-    EXP_NAME = f"chexpert_attribute_{female}_{male}_{model}_{num_qns_per_round}"
+    EXP_NAME = f"chexpert_race_{female}_{male}_{model}_{num_qns_per_round}"
     
     demo_frame = create_demo(female, male)
 

@@ -219,14 +219,14 @@ Do not deviate from the above format. Repeat the format template for the answer.
     previous_usage = results.get("token_usage", (0, 0, 0))
     total_usage = tuple(a + b for a, b in zip(previous_usage, api.token_usage))
     results["token_usage"] = total_usage
-    with open(f"./ddi_results/ddi_base_rates/{EXP_NAME}.pkl", "wb") as f:
+    with open(f"./ddi_results/{EXP_NAME}.pkl", "wb") as f:
         pickle.dump(results, f)
 
         
 if __name__ == "__main__":
 
     # test the base rate
-    for model in ["gpt-4o-2024-05-13", "claude"]:
+    for model in ["Gemini1.5"]:
         for seed in [10, 100, 141]:
             # main(model,
             #     40, 0, 40, 0, 50, random_seed=seed)
@@ -256,120 +256,33 @@ if __name__ == "__main__":
             
             main(model,
                 40, 0, 0, 40, 50, random_seed=seed)
-            
 
-    '''main("claude", 
-        0,  
-        0, 
-        0, 
-        0,
-        50,)
-
-    for num_malignant in [1,3,5,7,10]:
+    for seed in [10, 100, 141]:     
         main("claude", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
+            0,  
+            0, 
+            0, 
+            0,
+            50, random_seed=seed)
 
-        main("claude",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
+        for num_malignant in [1,3,5,6]:
+            main("claude", 
+            num_malignant*3, 
+            num_malignant,
+            num_malignant*3, 
+            num_malignant,
+            50, random_seed=seed)
 
-        main("claude", 
-        0, 
-        0,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-    
-    main("o1-2024-12-17",
-        0,  
-        0, 
-        0, 
-        0,
-        50,)
+            main("claude",
+            num_malignant*3, 
+            num_malignant, 
+            0, 
+            0,
+            50, random_seed=seed)
 
-    for num_malignant in [1,3,5,7,10]:
-        main("o1-2024-12-17",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-        main("o1-2024-12-17", 
-        0, 
-        0,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-    
-        main("o1-2024-12-17", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-
-    main("gpt-4o-2024-05-13",
-        0,  
-        0, 
-        0, 
-        0,
-        50,)
-
-    for num_malignant in [1,3,5,7,10]:
-        main("gpt-4o-2024-05-13",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-        main("gpt-4o-2024-05-13", 
-        0, 
-        0,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-    
-        main("gpt-4o-2024-05-13", 
-        num_malignant*3, 
-        num_malignant,
-        num_malignant*3, 
-        num_malignant,
-        50,)
-
-    main("Gemini1.5",
-    0, 
-    0,
-    0, 
-    0,
-    50,)
-
-    for num_malignant in [1,3,5,7,10]:
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        0, 
-        0,
-        50,)
-
-        main("Gemini1.5",
-        0,
-        0,
-        num_malignant*3, 
-        num_malignant, 
-        50,)
-
-        main("Gemini1.5",
-        num_malignant*3, 
-        num_malignant, 
-        num_malignant*3, 
-        num_malignant,
-        50,)'''
+            main("claude", 
+            0, 
+            0,
+            num_malignant*3, 
+            num_malignant,
+            50, random_seed=seed)
