@@ -59,8 +59,8 @@ class ClaudeAPI:
                 
             with Image.open(image_path) as img:
                 # Resize if needed
-                if img.size[0] > 128 or img.size[1] > 128:
-                    img = img.resize((128, 128))
+                if img.size[0] > 512 or img.size[1] > 512:
+                    img = img.resize((512, 512))
                 # Convert to RGB if needed
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
@@ -156,80 +156,6 @@ class ClaudeAPI:
         else:
             return response
 
-class OpenAIModel(ABC):
-    def __init__(self, model_kwargs: dict, is_async=False, **kwargs):
-        super().__init__(**kwargs)
-        self.model_kwargs = model_kwargs.copy()
-        self.model_kwargs.setdefault("model", "gpt-4o")
-        self.detail = "low"
-        if is_async:
-            self.client = openai.AsyncOpenAI(api_key=openaikey)
-        else:
-            self.client = openai.OpenAI(api_key=openaikey)
-        
-    def generate_text_url(self, text):
-        return {"type": "text", "text": text}
-
-    def generate_image_url(self, image_path, detail="low"):
-        def downscale_image(image_path, max_size=(512, 512)):
-            with Image.open(image_path) as img:
-                img.thumbnail(max_size)
-                img.save("temp_downscaled.jpeg", "JPEG")
-            return "temp_downscaled.jpeg"
-        def encode_image(image_path):
-            if str(image_path).lower().endswith("tif"):
-                with Image.open(image_path) as img:
-                    img.convert("RGB").save("temp.jpeg", "JPEG")
-                image_path = "temp.jpeg"
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
-        downscaled_image_path = downscale_image(image_path)
-        encoded_image = encode_image(downscaled_image_path)
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64, {encoded_image}",
-                "detail": detail,
-            },
-        }
-        
-    def generate_image_url(self, image_path, detail="low"):
-        
-
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64, {encode_image(image_path)}",
-                "detail": detail,
-            },
-        }
-
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential_jitter(),
-        retry=tenacity.retry_if_exception(
-            lambda exc: not isinstance(exc, UnanswerableError)
-        ),
-    )
-    def get_completion(self, text_prompt: str, test_cxr: str, demo_cxr: list[str] | None) -> str:
-        if demo_cxr:
-            raise NotImplementedError("ICL not implemented yet")
-        else:
-            messages = []
-            messages.append(self.generate_image_url(test_cxr, detail=self.detail))
-            messages.append(self.generate_text_url(text_prompt.split("<<IMG>>")[1]))
-        try:
-            response = self.client.chat.completions.create(
-                messages=[{"role": "user", "content": messages}],
-                **self.model_kwargs,
-            )
-        except openai.BadRequestError as e:
-            if "PromptTooLongError" in e.message:
-                raise UnanswerableError(e.message) from e
-            raise
-
-        return response.choices[0].message.content
-
 
 class GPT4VAPI:
     def __init__(
@@ -271,8 +197,8 @@ class GPT4VAPI:
             # Open the image using Pillow
             with Image.open(image_path) as img:
                 # Resize if needed
-                if img.size[0] > 128 or img.size[1] > 128:
-                    img = img.resize((128, 128))
+                if img.size[0] > 512 or img.size[1] > 512:
+                    img = img.resize((512, 512))
 
                 # Save the image to a temporary buffer
                 with BytesIO() as buffer:
@@ -407,8 +333,8 @@ class GeminiAPI:
             messages = []
         for idx in range(1, len(prompt)):
             img = Image.open(image_paths[idx - 1])
-            if img.size[0] > 128 or img.size[1] > 128:
-                img = img.resize((128, 128))
+            if img.size[0] > 512 or img.size[1] > 512:
+                img = img.resize((512, 512))
             messages.append(img)
             if prompt[idx].strip() != "":
                 messages.append(prompt[idx])

@@ -14,7 +14,7 @@ def create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=141):
     ### Choose relevant demo examples
     ### Then create demo prompt and list of demo image paths
     ###
-    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTA_final_demo_df.csv", index_col=0)
+    demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTX_final_demo_df.csv", index_col=0)
     total_samples = female_ben + female_mal + male_ben + male_mal
     
     female_frame = demo_frame[demo_frame.Sex == "Female"]
@@ -65,7 +65,7 @@ def main(
     
     demo_frame = create_demo(female_ben, female_mal, male_ben, male_mal, random_seed=random_seed)
 
-    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTA_final_test_df.csv", index_col=0)
+    test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/chexpert/chexpert_SexBinary_PTX_final_test_df.csv", index_col=0)
 
     if model.startswith("gpt") or model.startswith("o1"):
         api = GPT4VAPI(model=model, detail=detail)
