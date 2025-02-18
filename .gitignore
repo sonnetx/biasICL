@@ -3,3 +3,5 @@ plots/
 ddi_results/
 archived/
 past_csvs/
+new_chexpert/
+_pycache_/

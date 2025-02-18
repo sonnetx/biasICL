@@ -21,7 +21,7 @@ rare_diseases = {
         'xanthograngioma', 'chondroid-syringoma', 'angioleiomyoma'
     }
 
-def create_demo(fst12, fst56, filter_rare = False):
+def create_demo(fst12, fst56, filter_rare = False, random_seed=141):
     dataset_name = "DDI"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_demo_metadata.csv", index_col=0)
     if filter_rare:
@@ -32,25 +32,25 @@ def create_demo(fst12, fst56, filter_rare = False):
     fst56_frame = demo_frame[demo_frame.skin_tone == 56]
     if len(fst56_frame) < fst56:
         print(f"Warning: not enough samples for skin tone 56, taking the max available {len(fst56_frame)}")
-        fst56_frame = fst56_frame.sample(len(fst56_frame), random_state=141)
+        fst56_frame = fst56_frame.sample(len(fst56_frame), random_state=random_seed)
     else:
-        fst56_frame = fst56_frame.sample(fst56, random_state=141)
+        fst56_frame = fst56_frame.sample(fst56, random_state=random_seed)
     
     fst12_frame = demo_frame[demo_frame.skin_tone == 12]
     if len(fst12_frame) < fst12:
         print(f"Warning: not enough samples for skin tone 12, taking the max available {len(fst12_frame)}")
-        fst12_frame = fst12_frame.sample(len(fst12_frame), random_state=141)
+        fst12_frame = fst12_frame.sample(len(fst12_frame), random_state=random_seed)
     else:
-        fst12_frame = fst12_frame.sample(fst12, random_state=141)
+        fst12_frame = fst12_frame.sample(fst12, random_state=random_seed)
     
     
     final_demo_frame = pd.concat([fst56_frame, fst12_frame])
     
     if len(final_demo_frame) < total_samples:
         print(f"Warning: not enough total samples, taking the max available {len(final_demo_frame)}")
-        final_demo_frame = final_demo_frame.sample(len(final_demo_frame), random_state=141)
+        final_demo_frame = final_demo_frame.sample(len(final_demo_frame), random_state=random_seed)
     else:
-        final_demo_frame = final_demo_frame.sample(total_samples, random_state=141) # sample full num to shuffle
+        final_demo_frame = final_demo_frame.sample(total_samples, random_state=random_seed) # sample full num to shuffle
     return final_demo_frame
 
 def main(
@@ -60,12 +60,13 @@ def main(
     num_qns_per_round,
     filter_rare = False,
     detail="auto",
+    random_seed=141
 ):
 
 #     class_to_idx = {class_name: idx for idx, class_name in enumerate(classes)}
     EXP_NAME = f"ddi_fst_{fst12}_{fst56}_{model}_{num_qns_per_round}"
     
-    demo_frame = create_demo(fst12, fst56)
+    demo_frame = create_demo(fst12, fst56, random_seed=random_seed)
 
     dataset_name = "DDI"
     test_df = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/ddi_test_metadata.csv", index_col=0)
@@ -99,7 +100,7 @@ def main(
     else:
         results = {}
 
-    test_df = test_df.sample(frac=1, random_state=141)  # Shuffle the test set
+    test_df = test_df.sample(frac=1, random_state=random_seed)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
@@ -147,12 +148,36 @@ Do not deviate from the above format. Repeat the format template for the answer.
                 continue
 
             try:
-                res = api(
-                    prompt,
-                    image_paths=image_paths,
-                    real_call=True,
-                    max_tokens=60 * num_qns_per_round,
-                )
+                for retry in range(3):
+                    if (
+                        (qns_id in results)
+                        and (not results[qns_id][0].startswith("ERROR"))
+                        and (
+                            f"END FORMAT TEMPLATE FOR QUESTION {end_idx-start_idx}"
+                            in results[qns_id][0]
+                        )
+                    ):  # Skip if results exist and successful
+                        continue
+
+                    try:
+                        res = api(
+                            prompt,
+                            image_paths=image_paths,
+                            real_call=True,
+                            max_tokens=60 * num_qns_per_round,
+                        )
+                    
+                    except Exception as e:
+                        res = f"ERROR!!!! {traceback.format_exc()}"
+                    except KeyboardInterrupt:
+                        previous_usage = results.get("token_usage", (0, 0, 0))
+                        total_usage = tuple(
+                            a + b for a, b in zip(previous_usage, api.token_usage)
+                        )
+                        results["token_usage"] = total_usage
+                        with open(f"{EXP_NAME}.pkl", "wb") as f:
+                            pickle.dump(results, f)
+                        exit()
             except Exception as e:
                 res = f"ERROR!!!! {traceback.format_exc()}"
             except KeyboardInterrupt:
@@ -192,15 +217,24 @@ if __name__ == "__main__":
     #         i, i,
     #         50,)
 
-    main("gpt-4o-2024-05-13",
-        0, 
-        0, 
-        50,)
+    # main("gpt-4o-2024-05-13",
+    #     0, 
+    #     0, 
+    #     50,)
         
-    main("Gemini1.5",
-        0, 0,
-        50,)
+    # main("Gemini1.5",
+    #     0, 0,
+    #     50,)
 
-    main("claude",
-        0, 0,
-        50,)
+    # main("claude",
+    #     0, 0,
+    #     50,)
+
+    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+        for seed in [10, 100, 141]:   
+            for num_malignant in [1, 5, 10, 15, 20, 30,]:
+                main(model,
+                num_malignant, 
+                num_malignant, 
+                50,
+                random_seed=seed)

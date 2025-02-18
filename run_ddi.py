@@ -226,22 +226,22 @@ Do not deviate from the above format. Repeat the format template for the answer.
 if __name__ == "__main__":
 
     # test the base rate
-    for model in ["Gemini1.5"]:
+    for model in ["gpt-4o-2024-05-13", "claude"]:
         for seed in [10, 100, 141]:
-            # main(model,
-            #     40, 0, 40, 0, 50, random_seed=seed)
+            main(model,
+                40, 0, 40, 0, 50, random_seed=seed)
             
-            # main(model,
-            #     30, 10, 30, 10, 50, random_seed=seed)
+            main(model,
+                30, 10, 30, 10, 50, random_seed=seed)
             
-            # main(model,
-            #     20, 20, 20, 20, 50, random_seed=seed)
+            main(model,
+                20, 20, 20, 20, 50, random_seed=seed)
             
-            # main(model,
-            #     10, 30, 10, 30, 50, random_seed=seed)
+            main(model,
+                10, 30, 10, 30, 50, random_seed=seed)
             
-            # main(model,
-            #     0, 40, 0, 40, 50, random_seed=seed)
+            main(model,
+                0, 40, 0, 40, 50, random_seed=seed)
             
             # inverted base rate
             
@@ -257,32 +257,34 @@ if __name__ == "__main__":
             main(model,
                 40, 0, 0, 40, 50, random_seed=seed)
 
-    for seed in [10, 100, 141]:     
-        main("claude", 
-            0,  
-            0, 
-            0, 
-            0,
-            50, random_seed=seed)
+    # normal ICL experiments
+    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+        for seed in [10, 100, 141]:     
+            main(model, 
+                0,  
+                0, 
+                0, 
+                0,
+                50, random_seed=seed)
 
-        for num_malignant in [1,3,5,6]:
-            main("claude", 
-            num_malignant*3, 
-            num_malignant,
-            num_malignant*3, 
-            num_malignant,
-            50, random_seed=seed)
+            for num_malignant in [1,3,5,6]:
+                main(model, 
+                num_malignant*3, 
+                num_malignant,
+                num_malignant*3, 
+                num_malignant,
+                50, random_seed=seed)
 
-            main("claude",
-            num_malignant*3, 
-            num_malignant, 
-            0, 
-            0,
-            50, random_seed=seed)
+                main(model,
+                num_malignant*3, 
+                num_malignant, 
+                0, 
+                0,
+                50, random_seed=seed)
 
-            main("claude", 
-            0, 
-            0,
-            num_malignant*3, 
-            num_malignant,
-            50, random_seed=seed)
+                main(model, 
+                0, 
+                0,
+                num_malignant*3, 
+                num_malignant,
+                50, random_seed=seed)

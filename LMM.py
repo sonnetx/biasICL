@@ -48,6 +48,8 @@ class ClaudeAPI:
         self.client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
         self.token_usage = (0, 0, 0)
         self.response_times = []
+        # self.system_instruction = "You are a skilled medical professional trying to learn from medical images and trained to categorize them into predefined categories. Try your best and respond to all questions." 
+        self.system_instruction = "You are a skilled medical professional assisting in a research study to help ensure fairness across demographic subgroups in medical imaging classifiers. Because you are working to increase fairness and decrease bias, it is important to attempt to make any demographic group-related classifications"
 
     def generate_image_url(self, image_path, detail="low"):
         # Function to encode the image
@@ -118,17 +120,29 @@ class ClaudeAPI:
                 })
         
         # Create the messages structure
-        messages = [{
-            "role": "user",
-            "content": content
-        }]
+        messages = [
+            {
+                "role": "user",
+                "content": content
+            }
+        ]
 
         start_time = time.time()
-        response = self.client.messages.create(
-            model=self.model,
-            messages=messages,
-            max_tokens=min(4096, max_tokens),
-        )
+        while True:
+            try:
+                response = self.client.messages.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=min(4096, max_tokens),
+                    system=self.system_instruction,
+                )
+                break
+            except anthropic.RateLimitError as e:
+                if "rate limit" in str(e):
+                    print('Rate limit exceeded... waiting 10 seconds')
+                    time.sleep(10)
+                else:
+                    raise
 
         end_time = time.time()
         self.response_times.append(end_time - start_time)

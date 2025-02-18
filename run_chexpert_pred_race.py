@@ -8,7 +8,7 @@ from LMM import GPT4VAPI, GeminiAPI, ClaudeAPI
 import pandas as pd
 
 
-def create_demo(female, male):
+def create_demo(female, male, random_seed=141):
     dataset_name = "chexpert_binary_PNA"
     demo_frame = pd.read_csv(f"/home/groups/roxanad/sonnet/icl/ManyICL/ManyICL/dataset/{dataset_name}/demo.csv", index_col=0)
     total_samples = female + male
@@ -19,19 +19,19 @@ def create_demo(female, male):
     
     if len(female_frame) < female:
         print(f"Warning: not enough female samples for attribute, taking the max available {len(female_frame)}")
-        female_frame = female_frame.sample(len(female_frame), random_state=141)
+        female_frame = female_frame.sample(len(female_frame), random_state=random_seed)
     else:
-        female_frame = female_frame.sample(female, random_state=141)
+        female_frame = female_frame.sample(female, random_state=random_seed)
         
     if len(male_frame) < male:
         print(f"Warning: not enough male samples for attribute, taking the max available {len(male_frame)}")
-        male_frame = male_frame.sample(len(male_frame), random_state=141)
+        male_frame = male_frame.sample(len(male_frame), random_state=random_seed)
     else:
-        male_frame = male_frame.sample(male, random_state=141)
+        male_frame = male_frame.sample(male, random_state=random_seed)
     
     try:
         final_demo_frame = pd.concat([female_frame,
-                                      male_frame]).sample(total_samples, random_state=141) # sample full num to shuffle
+                                      male_frame]).sample(total_samples, random_state=random_seed) # sample full num to shuffle
     except Exception as e:
         print(f"Error: {e}")
         traceback.print_exc()
@@ -45,6 +45,7 @@ def main(
     male,
     num_qns_per_round,
     detail="auto",
+    random_seed=141,
 ):
 
     EXP_NAME = f"chexpert_race_{female}_{male}_{model}_{num_qns_per_round}"
@@ -80,7 +81,7 @@ def main(
     else:
         results = {}
 
-    test_df = test_df.sample(frac=1, random_state=141)  # Shuffle the test set
+    test_df = test_df.sample(frac=1, random_state=random_seed)  # Shuffle the test set
     for start_idx in tqdm(range(0, len(test_df), num_qns_per_round), desc=EXP_NAME):
         end_idx = min(len(test_df), start_idx + num_qns_per_round)
 
@@ -127,12 +128,26 @@ Do not deviate from the above format. Repeat the format template for the answer.
                 continue
 
             try:
-                res = api(
-                    prompt,
-                    image_paths=image_paths,
-                    real_call=True,
-                    max_tokens=60 * num_qns_per_round,
-                )
+                for retry in range(3):
+                    if (
+                        (qns_id in results)
+                        and (not results[qns_id][0].startswith("ERROR"))
+                        and (
+                            f"END FORMAT TEMPLATE FOR QUESTION {end_idx-start_idx}"
+                            in results[qns_id][0]
+                        )
+                    ):  # Skip if results exist and successful
+                        continue
+
+                    try:
+                        res = api(
+                            prompt,
+                            image_paths=image_paths,
+                            real_call=True,
+                            max_tokens=60 * num_qns_per_round,
+                        )
+                    except Exception as e:
+                        print(f"Error: {e}")
             except Exception as e:
                 res = f"ERROR!!!! {traceback.format_exc()}"
             except KeyboardInterrupt:
@@ -157,15 +172,20 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":    
-    main("gpt-4o-2024-05-13",
-        0, 
-        0, 
-        50,)
+    # main("gpt-4o-2024-05-13",
+    #     0, 
+    #     0, 
+    #     50,)
     
-    main("Gemini1.5",
-        0, 0,
-        50,)
+    # main("Gemini1.5",
+    #     0, 0,
+    #     50,)
 
-    main("claude",
-        0, 0,
-        50,)
+    for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
+        for seed in [10, 100, 141]:   
+            for num_malignant in [1, 5, 10, 15, 20, 30,]:
+                main(model,
+                num_malignant, 
+                num_malignant, 
+                50,
+                random_seed=seed)
