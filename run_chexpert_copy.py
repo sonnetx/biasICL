@@ -177,10 +177,8 @@ Do not deviate from the above format. Repeat the format template for the answer.
                     pickle.dump(results, f)
                 exit()
 
-            if not res or "ERROR" in res:
-                res = None
-            else:
-                print(res)
+            if res == None:
+                continue
             results[qns_id] = (res,prompt,image_paths)
 
     # Update token usage and save the results
@@ -192,16 +190,8 @@ Do not deviate from the above format. Repeat the format template for the answer.
 
         
 if __name__ == "__main__":
-    # for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
     for model in ["claude"]:
-        main(model,
-                12, 
-                12, 
-                12, 
-                12,
-                50,
-                random_seed=100)
-        for seed in [141]:
+        for seed in [10, 100, 141]:
             main(model,
                 0, 
                 0, 
@@ -210,87 +200,40 @@ if __name__ == "__main__":
                 50, 
                 random_seed=seed)
 
-            # main(model,
-            #     40, 0, 40, 0, 50, random_seed=seed)
-            
-            # main(model,
-            #     30, 10, 30, 10, 50, random_seed=seed)
-            
-            # main(model,
-            #     20, 20, 20, 20, 50, random_seed=seed)
-            
-            # main(model,
-            #     10, 30, 10, 30, 50, random_seed=seed)
-            
-            # main(model,
-            #     0, 40, 0, 40, 50, random_seed=seed)
-            
+            main(model,
+                25, 0, 25, 0, 50, random_seed=seed) 
+
+            main(model,
+                20, 5, 20, 5, 50, random_seed=seed)
+
+            main(model,
+                15, 10, 15, 10, 50, random_seed=seed)
+
+            main(model,
+                10, 15, 10, 15, 50, random_seed=seed)
+
+            main(model,
+                5, 20, 5, 20, 50, random_seed=seed)
+
+            main(model,
+                0, 25, 0, 25, 50, random_seed=seed)
+
             # inverted base rate
-            
-            # main(model,
-            #     0, 40, 40, 0, 50, random_seed=seed)
-            
-            # main(model,
-            #     10, 30, 30, 10, 50, random_seed=seed)
-            
-            # main(model,
-            #     30, 10, 10, 30, 50, random_seed=seed)
-            
-            # main(model,
-            #     40, 0, 0, 40, 50, random_seed=seed)
 
-            # claude
+            main(model,
+                0, 25, 25, 0, 50, random_seed=seed)
+            
+            main(model,
+                5, 20, 20, 5, 50, random_seed=seed)
 
-            # main(model,
-            #     30, 0, 30, 0, 50, random_seed=seed)
+            main(model,
+                10, 15, 15, 10, 50, random_seed=seed)
             
-            # main(model,
-            #     20, 10, 20, 10, 50, random_seed=seed)
-            
-            # main(model,
-            #     15, 15, 15, 15, 50, random_seed=seed)
-            
-            # main(model,
-            #     10, 20, 10, 20, 50, random_seed=seed)
-            
-            # main(model,
-            #     0, 30, 0, 30, 50, random_seed=seed)
-            
-            # # inverted base rate
-            
-            # main(model,
-            #     0, 30, 30, 0, 50, random_seed=seed)
-            
-            # main(model,
-            #     10, 20, 20, 10, 50, random_seed=seed)
-            
-            # main(model,
-            #     20, 10, 10, 20, 50, random_seed=seed)
-            
-            # main(model,
-            #     30, 0, 0, 30, 50, random_seed=seed)
-    
-            for num_malignant in [1, 5, 10, 12]:
-                main(model,
-                num_malignant, 
-                num_malignant, 
-                0, 
-                0,
-                50,
-                random_seed=seed)
+            main(model,
+                15, 10, 10, 15, 50, random_seed=seed)
 
-                main(model,
-                0, 
-                0,
-                num_malignant, 
-                num_malignant, 
-                50,
-                random_seed=seed)
+            main(model,
+                20, 5, 5, 20, 50, random_seed=seed)
 
-                main(model,
-                num_malignant, 
-                num_malignant, 
-                num_malignant, 
-                num_malignant,
-                50,
-                random_seed=seed)
+            main(model,
+                25, 0, 0, 25, 50, random_seed=seed)

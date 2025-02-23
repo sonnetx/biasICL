@@ -122,50 +122,18 @@ Confidence Score {qn_idx}: [Your Numerical Prediction Confidence Score Here From
 Do not deviate from the above format. Repeat the format template for the answer."""
         qns_id = str(qns_idx)
         for retry in range(3):
-            if (
-                (qns_id in results)
-                and (not results[qns_id][0].startswith("ERROR"))
-                and (
-                    f"END FORMAT TEMPLATE FOR QUESTION {end_idx-start_idx}"
-                    in results[qns_id][0]
-                )
-            ):  # Skip if results exist and successful
-                continue
-
             try:
-                for retry in range(3):
-                    if (
-                        (qns_id in results)
-                        and (not results[qns_id][0].startswith("ERROR"))
-                        and (
-                            f"END FORMAT TEMPLATE FOR QUESTION {end_idx-start_idx}"
-                            in results[qns_id][0]
-                        )
-                    ):  # Skip if results exist and successful
-                        continue
-
-                    try:
-                        res = api(
-                            prompt,
-                            image_paths=image_paths,
-                            real_call=True,
-                            max_tokens=60 * num_qns_per_round,
-                        )
-                    except Exception as e:
-                        print(f"Error: {e}")
-            except Exception as e:
-                res = f"ERROR!!!! {traceback.format_exc()}"
-            except KeyboardInterrupt:
-                previous_usage = results.get("token_usage", (0, 0, 0))
-                total_usage = tuple(
-                    a + b for a, b in zip(previous_usage, api.token_usage)
+                res = api(
+                    prompt,
+                    image_paths=image_paths,
+                    real_call=True,
+                    max_tokens=60 * num_qns_per_round,
                 )
-                results["token_usage"] = total_usage
-                with open(f"{EXP_NAME}.pkl", "wb") as f:
-                    pickle.dump(results, f)
-                exit()
+            except Exception as e:
+                print(f"Error in calling: {e}")
+                traceback.print_exc()
+                res = ""
 
-            print(res)
             results[qns_id] = (res,prompt,image_paths)
 
     # Update token usage and save the results
@@ -190,8 +158,9 @@ if __name__ == "__main__":
     #     50,)
 
     for model in ["Gemini1.5", "gpt-4o-2024-05-13", "claude"]:
-        for seed in [10, 100, 141]:   
-            for num_malignant in [1, 5, 10, 15, 20, 30,]:
+        for seed in [10]:  
+            nums = [0, 1, 5, 10, 15, 20, 30,]
+            for num_malignant in nums:
                 main(model,
                 num_malignant, 
                 num_malignant, 

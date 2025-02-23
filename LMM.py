@@ -85,6 +85,7 @@ class ClaudeAPI:
         count_time=False,
         max_tokens=50,
         content_only=True,
+        temperature = 0
     ):
         """
         Call the API to get the response for given prompt and images
@@ -135,10 +136,12 @@ class ClaudeAPI:
                     messages=messages,
                     max_tokens=min(4096, max_tokens),
                     system=self.system_instruction,
+                    temperature=temperature
                 )
                 break
             except anthropic.RateLimitError as e:
-                if "rate limit" in str(e):
+                print(str(e))
+                if "rate limit" in str(e) or 'overloaded_error' in str(e):
                     print('Rate limit exceeded... waiting 10 seconds')
                     time.sleep(10)
                 else:
@@ -240,6 +243,7 @@ class GPT4VAPI:
         count_time=False,
         max_tokens=50,
         content_only=True,
+        temperature = 0
     ):
         """
         Call the API to get the response for given prompt and images
@@ -265,7 +269,7 @@ class GPT4VAPI:
             model=self.model,
             messages=[{"role": "user", "content": messages}],
             # max_tokens=min(4096, max_tokens),
-            # temperature=self.temperature,
+            temperature=0,
             seed=self.seed,
         )
 
@@ -360,7 +364,6 @@ class GeminiAPI:
         responses = self.client.generate_content(
             messages,
         )
-        print(responses)
         end_time = time.time()
         self.response_times.append(end_time - start_time)
 
@@ -380,7 +383,6 @@ class GeminiAPI:
             if responses:
                 # Access the parts of the first candidate
                 content_parts = responses.text
-                print(content_parts)
                 return content_parts
             else:
                 print("Error occurred, retrying")
